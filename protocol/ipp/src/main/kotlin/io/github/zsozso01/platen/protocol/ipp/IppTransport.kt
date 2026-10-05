@@ -67,6 +67,12 @@ public class IppHttpTransport(
      * (the response must be read to its end, or stale bytes poison the next request).
      */
     private val sendConnectionClose: Boolean = true,
+    /**
+     * Allow a response with neither `Content-Length` nor chunking, read until the peer closes. Right
+     * for TCP. Wrong for IPP-over-USB, where nothing ever closes: there it would hang forever, so a
+     * response without framing is reported as an error instead.
+     */
+    private val allowReadToEnd: Boolean = true,
 ) {
     /**
      * Sends [ipp] followed by [document] and returns the response. [onBytesSent] receives the running
@@ -89,7 +95,7 @@ public class IppHttpTransport(
                 writeFailure = e
             }
             val response = try {
-                HttpWire.readResponse(input, maxResponseBytes)
+                HttpWire.readResponse(input, maxResponseBytes, allowReadToEnd)
             } catch (e: IOException) {
                 throw writeFailure ?: e
             }
@@ -150,7 +156,7 @@ internal object HttpWire {
     }
 
     /** Reads one response, skipping any `1xx` interim responses. */
-    fun readResponse(input: InputStream, maxBody: Int): HttpResponse {
+    fun readResponse(input: InputStream, maxBody: Int, allowReadToEnd: Boolean = true): HttpResponse {
         while (true) {
             val statusLine = readLine(input) ?: throw IOException("Connection closed before an HTTP response")
             val parts = statusLine.split(' ', limit = 3)
@@ -159,7 +165,7 @@ internal object HttpWire {
             val reason = parts.getOrElse(2) { "" }
             val headers = readHeaders(input)
             if (status in 100..199) continue
-            val body = readBody(input, headers, status, maxBody)
+            val body = readBody(input, headers, status, maxBody, allowReadToEnd)
             return HttpResponse(status, reason, headers, body)
         }
     }
@@ -180,7 +186,7 @@ internal object HttpWire {
         }
     }
 
-    private fun readBody(input: InputStream, headers: Map<String, String>, status: Int, maxBody: Int): ByteArray {
+    private fun readBody(input: InputStream, headers: Map<String, String>, status: Int, maxBody: Int, allowReadToEnd: Boolean): ByteArray {
         if (status == 204 || status == 304) return ByteArray(0)
         val transferEncoding = headers["transfer-encoding"]?.lowercase()
         if (transferEncoding != null && "chunked" in transferEncoding) return readChunked(input, maxBody)
@@ -189,6 +195,7 @@ internal object HttpWire {
             if (length < 0 || length > maxBody) throw IOException("HTTP body of $length bytes exceeds the $maxBody byte limit")
             return input.readNBytesStrict(length.toInt())
         }
+        if (!allowReadToEnd) throw IOException("HTTP response has no Content-Length and is not chunked; refusing to wait for a close that will never come")
         return readToEnd(input, maxBody)
     }
 

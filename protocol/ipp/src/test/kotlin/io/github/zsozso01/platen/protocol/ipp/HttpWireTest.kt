@@ -38,6 +38,15 @@ class HttpWireTest {
     }
 
     @Test
+    fun `unframed body is refused when the transport cannot signal a close`() {
+        val text = "HTTP/1.1 200 OK\r\n\r\ntail"
+        assertFailsWith<IOException> { HttpWire.readResponse(ByteArrayInputStream(text.toByteArray()), 1024, allowReadToEnd = false) }
+        // framed responses are fine either way
+        val framed = "HTTP/1.1 200 OK\r\nContent-Length: 4\r\n\r\ntail"
+        assertContentEquals("tail".toByteArray(), HttpWire.readResponse(ByteArrayInputStream(framed.toByteArray()), 1024, allowReadToEnd = false).body)
+    }
+
+    @Test
     fun `bare LF line endings are accepted`() {
         assertEquals(200, read("HTTP/1.1 200 OK\nContent-Length: 0\n\n").status)
     }
