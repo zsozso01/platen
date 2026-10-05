@@ -17,6 +17,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -81,6 +82,7 @@ private fun PlatenApp(vm: AppViewModel, needsPrinterFirst: Boolean, onNeedsPrint
     val session by vm.session.collectAsStateWithLifecycle()
     val job by vm.job.collectAsStateWithLifecycle()
     val openError by vm.openError.collectAsStateWithLifecycle()
+    val discovered by vm.discovered.collectAsStateWithLifecycle()
     val context = androidx.compose.ui.platform.LocalContext.current
 
     var showAdd by rememberSaveable { mutableStateOf(false) }
@@ -133,7 +135,11 @@ private fun PlatenApp(vm: AppViewModel, needsPrinterFirst: Boolean, onNeedsPrint
         )
     }
 
-    if (showAdd) AddPrinterDialog(onDismiss = { showAdd = false }, add = { vm.addPrinter(it) })
+    DisposableEffect(showAdd) {
+        if (showAdd) vm.startDiscovery()
+        onDispose { vm.stopDiscovery() }
+    }
+    if (showAdd) AddPrinterDialog(discovered = discovered, onDismiss = { showAdd = false }, add = { vm.addPrinter(it) })
 
     job?.let { current ->
         if (!jobHidden || current.finished != null || current.waitingForReload) {

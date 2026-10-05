@@ -1,6 +1,11 @@
 package io.github.zsozso01.platen.ui
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.KeyboardOptions
@@ -24,21 +29,22 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import io.github.zsozso01.platen.R
 import io.github.zsozso01.platen.route.ipp.AddressProbeException
+import io.github.zsozso01.platen.transport.network.DiscoveredPrinter
 import kotlinx.coroutines.launch
 
 @Composable
-fun AddPrinterDialog(onDismiss: () -> Unit, add: suspend (String) -> AddResult) {
+fun AddPrinterDialog(discovered: List<DiscoveredPrinter>, onDismiss: () -> Unit, add: suspend (String) -> AddResult) {
     var text by rememberSaveable { mutableStateOf("") }
     var busy by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<Int?>(null) }
     val scope = rememberCoroutineScope()
 
-    fun submit() {
-        if (busy || text.isBlank()) return
+    fun submit(address: String = text) {
+        if (busy || address.isBlank()) return
         busy = true
         error = null
         scope.launch {
-            when (val result = add(text)) {
+            when (val result = add(address)) {
                 is AddResult.Added -> onDismiss()
                 AddResult.InvalidAddress -> error = R.string.add_invalid
                 is AddResult.Failed -> error = when (result.reason) {
@@ -57,7 +63,28 @@ fun AddPrinterDialog(onDismiss: () -> Unit, add: suspend (String) -> AddResult) 
         onDismissRequest = { if (!busy) onDismiss() },
         title = { Text(stringResource(R.string.add_title)) },
         text = {
-            Column {
+            Column(Modifier.verticalScroll(rememberScrollState())) {
+                Text(stringResource(R.string.add_nearby_title), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+                if (discovered.isEmpty()) {
+                    Row(Modifier.padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        CircularProgressIndicator(Modifier.padding(end = 12.dp).size(18.dp), strokeWidth = 2.dp)
+                        Text(stringResource(R.string.add_nearby_searching), style = MaterialTheme.typography.bodyMedium)
+                    }
+                    Text(stringResource(R.string.add_nearby_none), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+                discovered.forEach { printer ->
+                    Column(
+                        Modifier.fillMaxWidth().clickable(enabled = !busy && !printer.secure) { submit(printer.address) }.padding(vertical = 10.dp),
+                    ) {
+                        Text(printer.name, style = MaterialTheme.typography.titleMedium, color = if (printer.secure) MaterialTheme.colorScheme.onSurfaceVariant else MaterialTheme.colorScheme.onSurface)
+                        Text(
+                            if (printer.secure) stringResource(R.string.add_nearby_encrypted) else printer.host,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+                Text(stringResource(R.string.add_or_enter), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 12.dp, bottom = 4.dp))
                 OutlinedTextField(
                     value = text,
                     onValueChange = { text = it; error = null },

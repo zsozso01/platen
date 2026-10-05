@@ -3,6 +3,7 @@ package io.github.zsozso01.platen
 import android.app.Application
 import io.github.zsozso01.platen.data.PrinterStore
 import io.github.zsozso01.platen.job.JobManager
+import io.github.zsozso01.platen.platform.discovery.NsdPrinterDiscovery
 import io.github.zsozso01.platen.platform.render.DocumentOpener
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -16,6 +17,7 @@ class AppContainer(app: Application) {
     val printerStore = PrinterStore(File(app.filesDir, "printers.json"))
     val documentOpener = DocumentOpener(app)
     val jobManager = JobManager(app, applicationScope)
+    val discovery = NsdPrinterDiscovery(app)
 }
 
 class PlatenApp : Application() {

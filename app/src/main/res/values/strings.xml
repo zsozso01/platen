@@ -30,6 +30,11 @@
     <string name="add_error_encryption">This printer only accepts encrypted connections, which Platen does not support yet.</string>
     <string name="add_error_secure">Encrypted ipps:// addresses are not supported yet. Use the plain address of the printer.</string>
     <string name="add_error_auth">This printer asks for a user name and password, which Platen does not support yet.</string>
+    <string name="add_nearby_title">Printers on your network</string>
+    <string name="add_nearby_searching">Looking for printers…</string>
+    <string name="add_nearby_none">None found yet. Enter the address below if you know it.</string>
+    <string name="add_nearby_encrypted">Encrypted connections only, not supported yet</string>
+    <string name="add_or_enter">Or enter an address</string>
     <string name="cancel">Cancel</string>
     <string name="close">Close</string>
     <string name="done">Done</string>

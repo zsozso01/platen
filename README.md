@@ -66,7 +66,8 @@ module, not touching the rest. Details in [docs/ARCHITECTURE.md](docs/ARCHITECTU
 | ✅ Fake IPP printer for development without hardware | tested |
 | ✅ The Android app: add a printer by address, pick a PDF or image (or share/"open with" into Platen), live preview, settings built from what the printer reports, print, progress, cancel, manual duplex | works on an Android 15 emulator against the fake printer; **not yet on real hardware** |
 | ✅ Rendering with Android's own `PdfRenderer` in bounded-memory bands, including sideways pages and several pages per sheet | 25 instrumented tests on an emulator |
-| 🚧 Finding printers automatically (mDNS) and the first real-printer test | next |
+| ✅ Finding printers automatically with mDNS (`NsdManager`), shown in the Add dialog | interpretation of DNS-SD records is unit-tested; **discovery itself is unverified**: the emulator has no printers to find |
+| 🚧 The first test on a real printer | needs hardware |
 | 📋 USB printing, saved presets, Android print service, translations | see [roadmap](docs/ROADMAP.md) |
 
 ## First validation printers

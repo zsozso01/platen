@@ -14,9 +14,11 @@ import io.github.zsozso01.platen.route.ipp.AddressProbeException
 import io.github.zsozso01.platen.route.ipp.IppAddressProbe
 import io.github.zsozso01.platen.route.ipp.IppEndpoint
 import io.github.zsozso01.platen.route.ipp.IppJobProtocol
+import io.github.zsozso01.platen.transport.network.DiscoveredPrinter
 import io.github.zsozso01.platen.transport.network.PrinterAddress
 import io.github.zsozso01.platen.transport.network.TcpConnector
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -63,8 +65,30 @@ class AppViewModel(private val container: AppContainer) : ViewModel() {
     private val _selectedPrinterId = MutableStateFlow<String?>(null)
     val selectedPrinterId: StateFlow<String?> = _selectedPrinterId.asStateFlow()
 
+    private val _discovered = MutableStateFlow<List<DiscoveredPrinter>>(emptyList())
+
+    /** Printers found by mDNS that are not saved yet. Empty unless [startDiscovery] is running. */
+    val discovered: StateFlow<List<DiscoveredPrinter>> = _discovered.asStateFlow()
+    private var discoveryJob: Job? = null
+
     init {
         refreshStatuses()
+    }
+
+    fun startDiscovery() {
+        if (discoveryJob?.isActive == true) return
+        discoveryJob = viewModelScope.launch {
+            container.discovery.discover().collect { found ->
+                val saved = printers.value.map { it.hostHeader to it.path }.toSet()
+                _discovered.value = found.filterNot { (if (it.port == 631) it.host else "${it.host}:${it.port}") to it.path in saved }
+            }
+        }
+    }
+
+    fun stopDiscovery() {
+        discoveryJob?.cancel()
+        discoveryJob = null
+        _discovered.value = emptyList()
     }
 
     fun selectPrinter(id: String) {

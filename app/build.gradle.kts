@@ -35,6 +35,7 @@ dependencies {
     implementation(projects.route.ipp)
     implementation(projects.transport.network)
     implementation(projects.platform.render)
+    implementation(projects.platform.discovery)
     implementation(libs.kotlinx.serialization.json)
 
     implementation(libs.androidx.core.ktx)

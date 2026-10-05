@@ -109,14 +109,16 @@ route/                  Job protocols: capability probe + send + follow
   ipp/                  IPP: attribute mapping, job ticket, status         ✅
 
 transport/              Byte pipes
-  network/              Plain TCP connector and printer-address parsing    ✅
+  network/              Plain TCP connector, printer-address parsing,
+                        DNS-SD record interpretation                       ✅
                         (TLS / ipps with trust-on-first-use                📋)
 
 platform/               Android specifics (Android libraries)
   render/               PdfRenderer and image documents, banded rasteriser,
                         document opener                                    ✅
+  discovery/            mDNS via NsdManager (DNS-SD records are interpreted
+                        in transport/network, which is unit-tested)        ✅
   usb/                  UsbManager transport and printer-interface probing 📋
-  discovery/            mDNS / NSD                                         📋
   printservice/         Android PrintService                               📋
 
 testing/
