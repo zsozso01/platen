@@ -11,3 +11,5 @@ decision, consequences. A superseded record stays in the folder with its status 
 | [0004](0004-no-telemetry-no-account-no-ads.md) | No telemetry, no account, no ads, no off-device traffic | accepted |
 | [0005](0005-namespace-and-application-id.md) | Package namespace and application id | accepted |
 | [0006](0006-build-baseline.md) | Build baseline and pinned versions | accepted |
+| [0007](0007-own-ipp-client.md) | Write our own IPP client instead of depending on jipp | accepted |
+| [0008](0008-rendering-and-pdf-handling.md) | Rendering, layout and PDF handling | accepted |

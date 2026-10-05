@@ -86,19 +86,22 @@ app/                    Android application: Compose UI, wiring            ✅ s
 build-logic/            Gradle convention plugins                          ✅
 
 core/
-  model/                Domain types: printer, capabilities, settings, job ✅ placeholder
+  model/                Domain types: printer, capabilities, settings, job ✅
+  layout/               Page selection, scaling, orientation, margins,
+                        n-up and booklet imposition as per-side placements ✅
   engine/               Backend / JobProtocol / Transport / Discovery
-                        interfaces, planner, job runner                    📋
+                        interfaces, printer planner, job runner            📋
 
 protocol/               Wire formats. Pure Kotlin, no Android, no core.
   ieee1284/             Device ID parser                                   ✅
   pjl/                  Printer Job Language                               ✅
   ipp/                  IPP codec, HTTP framing, client, typed attributes  ✅
-  raster/               PWG Raster and URF encoders                        📋
+  raster/               PWG Raster writer and reader                       ✅
+                        (Apple Raster / URF to follow)                     📋
 
 backend/                Page-language writers (depend on core + protocol)
   pdf/                  PDF pass-through                                   📋
-  raster/               Rasterise pages and encode as PWG Raster / URF     📋
+  raster/               Render pages in bands and feed the raster writers  📋
 
 transport/              Byte pipes
   network/              TCP and TLS sockets                                📋
@@ -146,7 +149,8 @@ write. USB transfers get the same treatment (cancel the pending request, then cl
 |---|---|
 | Parsers and encoders | Unit tests with byte-exact expectations; fuzz-style tests for decoders ✅ |
 | Client against a printer | `FakeIppPrinter` speaks real HTTP/IPP over a loopback socket, with fault injection ✅ |
-| Rendering output | Golden-file tests of raster output 📋 |
+| Raster output | The PWG Raster writer reproduces the spec's own sample encodings byte for byte ✅; golden-file tests of rendered pages 📋 |
+| Layout | Property tests: every placed page stays inside the printable area; booklet order is exact ✅ |
 | UI | Compose tests on the emulator, driving the app against `FakeIppPrinter` 📋 |
 | Real hardware | A per-printer checklist in [printers/](printers/); results go into the compatibility notes |
 

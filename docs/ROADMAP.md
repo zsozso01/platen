@@ -10,7 +10,7 @@ settings, then UX.
 | | Milestone | State |
 |---|---|---|
 | M0 | **Foundation**: repo, Gradle build, CI, docs, community files | ✅ done |
-| M1 | **Protocol libraries**: IEEE 1284 Device ID, PJL, IPP (codec, HTTP framing, client, typed attributes), fake printer for tests | ✅ done |
+| M1 | **Foundations**: protocol libraries (IEEE 1284 Device ID, PJL, IPP codec/HTTP/client/typed attributes, PWG Raster), domain model, layout planner, fake printer for tests | ✅ done |
 | M2 | **Wi-Fi MVP** (target: HP DeskJet 3700): mDNS discovery, capability probe, PDF → raster, PWG Raster encoder, IPP `Print-Job`, job status, cancel, manual duplex, settings UI | 🚧 next |
 | M3 | **USB MVP** (target: HP LaserJet E42540): USB host transport, interface probing, Device ID, IPP-over-USB, PJL + native PDF fallback, permission and error UX | 📋 |
 | M4 | **PC-class settings**: page ranges, reverse, odd/even, pages per sheet, booklet, scaling (actual / fit / fill / custom), margins, saved presets, print preview | 📋 |

@@ -51,6 +51,8 @@ module, not touching the rest. Details in [docs/ARCHITECTURE.md](docs/ARCHITECTU
 | ✅ IPP: binary codec, HTTP framing, client (`Get-Printer-Attributes`, `Print-Job`, `Validate-Job`, job status, cancel), typed capability view | tested, fuzzed |
 | ✅ PJL: job headers, queries, status and `INFO VARIABLES` parsing | tested |
 | ✅ IEEE 1284 Device ID parsing (USB printers) | tested |
+| ✅ PWG Raster writer and reader (the format driverless inkjets accept) | matches the spec's own samples byte for byte |
+| ✅ Layout planner: page ranges, reverse, odd/even, scaling, margins, orientation, pages per sheet, booklet | tested |
 | ✅ Fake IPP printer for development without hardware | tested |
 | 🚧 Wi-Fi printing (mDNS discovery, PDF → PWG Raster, IPP printing, manual duplex) | next |
 | 📋 USB printing, settings UI, previews, presets, share target, Android print service | see [roadmap](docs/ROADMAP.md) |
@@ -90,7 +92,7 @@ The `protocol/*` modules are pure Kotlin and the easiest place to begin.
 
 ## Documentation
 
-* [Architecture](docs/ARCHITECTURE.md) · [Roadmap](docs/ROADMAP.md) · [Development](docs/DEVELOPMENT.md)
+* [Architecture](docs/ARCHITECTURE.md) · [Roadmap](docs/ROADMAP.md) · [Development](docs/DEVELOPMENT.md) · [Android platform notes](docs/PLATFORM-NOTES.md)
 * [Printer notes](docs/printers/) · [Decision records](docs/adr/) · [Privacy](docs/PRIVACY.md) · [Security](SECURITY.md)
 
 ## License
