@@ -28,6 +28,7 @@ import kotlin.math.abs
  */
 public object PrintPlanner {
     private const val DEFAULT_RASTER_DPI = 300
+    private const val MAX_PDF_RASTER_DPI = 600
 
     public fun plan(
         document: DocumentSource,
@@ -52,9 +53,8 @@ public object PrintPlanner {
         val rasterAvailable = rasterFormat(caps) != null
 
         return when {
-            nativeOk -> passThrough(settings, caps, jobName, sheet, layout, wantedSides, degraded = false, decisions)
+            nativeOk -> passThrough(settings, caps, jobName, sheet, layout, wantedSides, decisions)
             rasterAvailable -> raster(settings, caps, jobName, sheet, layout, wantedSides, decisions)
-            pdfAvailable -> passThrough(settings, caps, jobName, sheet, layout, wantedSides, degraded = true, decisions)
             else -> throw PlanningException(
                 "The printer accepts none of the formats Platen can produce " +
                     "(printer reports: ${caps.formats.joinToString { it.mime }.ifEmpty { "nothing" }})",
@@ -121,7 +121,6 @@ public object PrintPlanner {
         sheet: MediaSize,
         layout: LayoutPlan,
         wantedSides: Sides,
-        degraded: Boolean,
         decisions: MutableList<Decision>,
     ): PrintPlan {
         fun decide(kind: SettingKind, outcome: Outcome, detail: String? = null) {
@@ -188,7 +187,6 @@ public object PrintPlanner {
             bookletMaker = booklet,
             resolutionDpi = settings.resolutionDpi?.takeIf { it in caps.resolutionsDpi },
         )
-        if (degraded) decide(SettingKind.PAGES, Outcome.APPROXIMATED, "Printed through the PDF path with the printer's own capabilities only")
         return PrintPlan(
             route = RouteKind.PASS_THROUGH,
             format = DocumentFormat.PDF,
@@ -203,9 +201,15 @@ public object PrintPlanner {
 
     // --- raster -----------------------------------------------------------------------------------
 
-    /** The raster format Platen can produce and the printer accepts, best first. Only PWG Raster so far. */
-    private fun rasterFormat(caps: PrinterCapabilities): DocumentFormat? =
-        DocumentFormat.PWG_RASTER.takeIf { caps.supports(it) }
+    /**
+     * The raster format Platen can produce and the printer accepts, best first. PWG Raster is what a printer
+     * with an explicit raster profile wants; a printer that only takes PDF gets a PDF made of page images.
+     */
+    private fun rasterFormat(caps: PrinterCapabilities): DocumentFormat? = when {
+        caps.supports(DocumentFormat.PWG_RASTER) -> DocumentFormat.PWG_RASTER
+        caps.supports(DocumentFormat.PDF) -> DocumentFormat.PDF
+        else -> null
+    }
 
     private fun raster(
         settings: PrintSettings,
@@ -241,9 +245,12 @@ public object PrintPlanner {
             else -> throw PlanningException("The printer's raster colour types (${types.joinToString()}) are not supported yet")
         }
         val pixelFormat = if (type == "sgray_8") RasterPixelFormat.GRAY8 else RasterPixelFormat.RGB24
+        val format = checkNotNull(rasterFormat(caps)) { "raster() needs a raster format" }
 
-        // Resolution
-        val available = caps.raster?.resolutionsDpi.orEmpty().ifEmpty { caps.resolutionsDpi }.ifEmpty { listOf(DEFAULT_RASTER_DPI) }
+        // Resolution. In a PDF the image's density only matters for how sharp it looks, and the printer's
+        // own 1200 dpi mode would make each page a hundred megabytes, so it stops at 600.
+        val offered = caps.raster?.resolutionsDpi.orEmpty().ifEmpty { caps.resolutionsDpi }.ifEmpty { listOf(DEFAULT_RASTER_DPI) }
+        val available = if (format == DocumentFormat.PDF) offered.filter { it <= MAX_PDF_RASTER_DPI }.ifEmpty { listOf(offered.min()) } else offered
         val dpi = when {
             settings.resolutionDpi != null -> nearest(available, settings.resolutionDpi!!)
             settings.quality == Quality.DRAFT -> available.min()
@@ -293,7 +300,7 @@ public object PrintPlanner {
         )
         return PrintPlan(
             route = RouteKind.RASTER,
-            format = DocumentFormat.PWG_RASTER,
+            format = format,
             layout = layout,
             raster = RasterParams(
                 dpi = dpi,
@@ -301,7 +308,8 @@ public object PrintPlanner {
                 pwgType = type,
                 printerDuplex = printerDuplex,
                 tumble = printerDuplex && wantedSides == Sides.TWO_SIDED_SHORT_EDGE,
-                sheetBack = SheetBack.fromKeyword(caps.raster?.sheetBack),
+                // A PDF page is always upright and the printer's duplexer turns the sheet; only PWG needs back-side transforms.
+                sheetBack = if (format == DocumentFormat.PDF) SheetBack.NORMAL else SheetBack.fromKeyword(caps.raster?.sheetBack),
             ),
             printer = printer,
             passes = passes,

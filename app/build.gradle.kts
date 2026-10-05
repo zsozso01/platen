@@ -32,6 +32,7 @@ dependencies {
     implementation(projects.core.model)
     implementation(projects.core.engine)
     implementation(projects.backend.raster)
+    implementation(projects.backend.pdf)
     implementation(projects.route.ipp)
     implementation(projects.route.usb)
     implementation(projects.platform.usb)

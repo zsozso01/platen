@@ -220,20 +220,38 @@ class PrintPlannerTest {
     }
 
     @Test
-    fun `a PDF-only printer degrades with warnings instead of failing`() {
-        val pdfOnly = laserCaps.copy(formats = listOf(DocumentFormat.PDF))
-        val plan = PrintPlanner.plan(SyntheticDocument.a4Pages(4), PrintSettings(reverseOrder = true), pdfOnly)
-        assertEquals(RouteKind.PASS_THROUGH, plan.route)
-        assertEquals(Outcome.IGNORED, outcome(plan, SettingKind.REVERSE))
-        assertTrue(plan.warnings.isNotEmpty())
+    fun `a PDF-only printer gets layout features by receiving a PDF made of page images`() {
+        val pdfOnly = laserCaps.copy(formats = listOf(DocumentFormat.PDF), resolutionsDpi = listOf(300, 600, 1200))
+        val plan = PrintPlanner.plan(SyntheticDocument.a4Pages(4), PrintSettings(reverseOrder = true, quality = Quality.HIGH), pdfOnly)
+        assertEquals(RouteKind.RASTER, plan.route)
+        assertEquals(DocumentFormat.PDF, plan.format)
+        assertEquals(Outcome.BY_APP, outcome(plan, SettingKind.REVERSE))
+        assertEquals(600, plan.raster?.dpi, "high quality stops at 600 dpi in a PDF, not the printer's 1200")
+        assertEquals(SheetBack.NORMAL, plan.raster?.sheetBack, "a PDF page is always upright")
+        assertTrue(plan.warnings.isEmpty())
     }
 
     @Test
-    fun `duplex the printer lacks cannot be done for a PDF-only printer and is reported`() {
+    fun `a PDF-only printer with PWG raster too gets PWG for layout work`() {
+        val both = laserCaps.copy(formats = listOf(DocumentFormat.PDF, DocumentFormat.PWG_RASTER))
+        assertEquals(DocumentFormat.PWG_RASTER, PrintPlanner.plan(SyntheticDocument.a4Pages(4), PrintSettings(reverseOrder = true), both).format)
+    }
+
+    @Test
+    fun `images can be printed on a PDF-only printer`() {
+        val pdfOnly = laserCaps.copy(formats = listOf(DocumentFormat.PDF))
+        val plan = PrintPlanner.plan(SyntheticDocument.a4Pages(1, asPdf = false), PrintSettings(), pdfOnly)
+        assertEquals(RouteKind.RASTER, plan.route)
+        assertEquals(DocumentFormat.PDF, plan.format)
+    }
+
+    @Test
+    fun `duplex the PDF-only printer lacks is done by the app in two passes`() {
         val pdfOnlySimplex = laserCaps.copy(formats = listOf(DocumentFormat.PDF), sides = setOf(Sides.ONE_SIDED))
         val plan = PrintPlanner.plan(SyntheticDocument.a4Pages(4), PrintSettings(sides = Sides.TWO_SIDED_LONG_EDGE), pdfOnlySimplex)
         assertEquals(Sides.ONE_SIDED, plan.printer.sides)
-        assertEquals(Outcome.IGNORED, outcome(plan, SettingKind.SIDES))
+        assertEquals(Outcome.BY_APP, outcome(plan, SettingKind.SIDES))
+        assertEquals(2, plan.passes.size)
     }
 
     // ---------------------------------------------------------------- shared behaviour

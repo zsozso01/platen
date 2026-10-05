@@ -1,10 +1,10 @@
 package io.github.zsozso01.platen.route.pjl
 
+import io.github.zsozso01.platen.backend.pdf.PdfRasterBackend
 import io.github.zsozso01.platen.core.engine.PrintEngine
 import io.github.zsozso01.platen.core.engine.PrintRequest
 import io.github.zsozso01.platen.core.model.DocumentFormat
 import io.github.zsozso01.platen.core.model.JobEvent
-import io.github.zsozso01.platen.core.model.PrintFailure
 import io.github.zsozso01.platen.core.model.PrintSettings
 import io.github.zsozso01.platen.core.model.Sides
 import io.github.zsozso01.platen.testing.fakeprinter.FakePjlPrinter
@@ -18,7 +18,6 @@ import kotlin.io.path.createTempDirectory
 import kotlin.test.AfterTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
 /** The real planner and engine driving the PJL route against a fake PDF laser on a simulated USB interface. */
@@ -36,7 +35,7 @@ class PjlEndToEndTest {
     private val protocol = PjlJobProtocol(printer::open, deviceId = { "MFG:HP;MDL:HP LaserJet MFP E42540;CMD:PJL,PCL,POSTSCRIPT,PDF;" }, timing = timing)
 
     private val engine = PrintEngine(
-        backends = emptyMap(),
+        backends = mapOf(DocumentFormat.PDF to PdfRasterBackend()),
         spoolDir = spool,
         rasterizer = { SolidBlockRasterizer() },
         dispatcher = Dispatchers.IO,
@@ -59,11 +58,31 @@ class PjlEndToEndTest {
     }
 
     @Test
-    fun `a document that is not a PDF cannot be printed yet and says so`() {
-        val events = run(PrintRequest(protocol, SyntheticDocument.a4Pages(1, asPdf = false), PrintSettings()))
-        val failed = assertIs<JobEvent.Failed>(events.last())
-        assertTrue(failed.failure is PrintFailure.PreparationFailed || failed.failure is PrintFailure.Rejected, "failure: ${failed.failure}")
-        assertTrue(printer.jobs.isEmpty())
-        assertTrue(DocumentFormat.PDF.mime.isNotEmpty())
+    fun `an image is rendered into a PDF and printed`() {
+        val events = run(PrintRequest(protocol, SyntheticDocument.a4Pages(1, asPdf = false), PrintSettings(copies = 2, collate = false)))
+        assertEquals(JobEvent.Completed, events.last(), "events: $events")
+        val job = printer.jobs.single()
+        assertEquals("PDF", job.language)
+        assertTrue(String(job.data, Charsets.ISO_8859_1).startsWith("%PDF-1.4"), "a PDF made of the page image")
+        assertEquals("2", job.setting("QTY"), "uncollated copies are left to the printer, carried by PJL")
+    }
+
+    @Test
+    fun `collated copies are sent as repeated pages so they come out in order`() {
+        val events = run(PrintRequest(protocol, SyntheticDocument.a4Pages(2, asPdf = false), PrintSettings(copies = 2)))
+        assertEquals(JobEvent.Completed, events.last(), "events: $events")
+        val job = printer.jobs.single()
+        assertTrue("/Count 4" in String(job.data, Charsets.ISO_8859_1))
+        assertEquals(null, job.setting("QTY"))
+    }
+
+    @Test
+    fun `a PDF with settings the printer cannot do natively is rendered so they still work`() {
+        val settings = PrintSettings(reverseOrder = true)
+        val events = run(PrintRequest(protocol, SyntheticDocument.a4Pages(3), settings))
+        assertEquals(JobEvent.Completed, events.last(), "events: $events")
+        assertEquals(3, events.filterIsInstance<JobEvent.Preparing>().size, "all three pages were rendered")
+        val pdf = String(printer.jobs.single().data, Charsets.ISO_8859_1)
+        assertTrue(pdf.startsWith("%PDF-1.4") && "/Count 3" in pdf)
     }
 }

@@ -9,4 +9,5 @@ dependencies {
 
     testImplementation(projects.testing.fakePrinter)
     testImplementation(projects.testing.support)
+    testImplementation(projects.backend.pdf)
 }

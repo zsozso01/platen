@@ -2,6 +2,7 @@ package io.github.zsozso01.platen.job
 
 import android.content.Context
 import androidx.core.content.ContextCompat
+import io.github.zsozso01.platen.backend.pdf.PdfRasterBackend
 import io.github.zsozso01.platen.backend.raster.PwgRasterBackend
 import io.github.zsozso01.platen.core.engine.PrintEngine
 import io.github.zsozso01.platen.core.engine.PrintRequest
@@ -73,7 +74,7 @@ class JobManager(
         ContextCompat.startForegroundService(context, PrintJobService.intent(context))
 
         val engine = PrintEngine(
-            backends = mapOf(DocumentFormat.PWG_RASTER to PwgRasterBackend()),
+            backends = mapOf(DocumentFormat.PWG_RASTER to PwgRasterBackend(), DocumentFormat.PDF to PdfRasterBackend()),
             spoolDir = spool,
             rasterizer = { AndroidSideRasterizer(held) },
             dispatcher = Dispatchers.IO,
