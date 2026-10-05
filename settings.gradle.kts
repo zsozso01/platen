@@ -34,3 +34,7 @@ enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
 include(":app")
 include(":core:model")
+include(":protocol:ieee1284")
+include(":protocol:pjl")
+include(":protocol:ipp")
+include(":testing:fake-printer")
