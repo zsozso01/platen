@@ -50,9 +50,10 @@ CI runs `./gradlew build -Pplaten.warningsAsErrors=true`. Run the same before yo
 ./gradlew :testing:fake-printer:run --args="laser 6311"      # PDF-capable laser with duplex and trays
 ```
 
-From the Android emulator the host machine is `10.0.2.2`, so add the printer by address as
-`ipp://10.0.2.2:6310/ipp/print`. Received jobs are written to the current directory so you can open
-the PWG Raster or PDF the app produced.
+From the Android emulator the host machine is `10.0.2.2`, so in the app choose *Add printer* and type
+`10.0.2.2:6310` (Platen finds the IPP path itself). Received jobs are written next to the fake printer
+(`testing/fake-printer/fake-printer-job-N.pwg`, git-ignored) so you can inspect exactly what a printer would
+receive. A PWG Raster file can be checked with any independent decoder.
 
 ## Layout
 
