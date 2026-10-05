@@ -1,0 +1,40 @@
+name: Printer compatibility report
+description: Tell us whether your printer works (this is how support grows)
+labels: [printer-compatibility]
+body:
+  - type: markdown
+    attributes:
+      value: >
+        Platen detects printer capabilities at run time instead of keeping a database, so a report is
+        most useful when it includes the diagnostic export. Both working and failing printers help.
+  - type: input
+    id: printer
+    attributes:
+      label: Printer make and model
+    validations:
+      required: true
+  - type: dropdown
+    id: result
+    attributes:
+      label: Result
+      options: [Works fully, Works with problems, Does not work, Detected but not tried]
+    validations:
+      required: true
+  - type: dropdown
+    id: connection
+    attributes:
+      label: Connection
+      options: [Wi-Fi / LAN (IPP), Wi-Fi / LAN (raw port 9100), USB cable (OTG)]
+    validations:
+      required: true
+  - type: textarea
+    id: notes
+    attributes:
+      label: Which settings worked or failed?
+      description: Duplex, trays, colour, resolution, page ranges, copies ...
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostic report
+      description: Settings > Diagnostics > Export report. Serial numbers and addresses are removed; check before pasting.
+      render: text

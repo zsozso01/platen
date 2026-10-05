@@ -23,3 +23,6 @@ keystore.properties
 # Local scratch (printer dumps captured while debugging may contain serial numbers / hostnames)
 /scratch/
 /captures-private/
+
+# Per-machine environment overrides (JDK/SDK/cache paths)
+scripts/env.local.*

@@ -1,0 +1,40 @@
+name: Bug report
+description: Something does not work as it should
+labels: [bug]
+body:
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: What did you do, what did you expect, what happened instead?
+    validations:
+      required: true
+  - type: input
+    id: printer
+    attributes:
+      label: Printer make and model
+      placeholder: "e.g. HP DeskJet 3700 series"
+    validations:
+      required: true
+  - type: dropdown
+    id: connection
+    attributes:
+      label: How is the printer connected?
+      options: [Wi-Fi / LAN (IPP), Wi-Fi / LAN (raw port 9100), USB cable (OTG), Other]
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Platen version and Android version
+      placeholder: "Platen 0.1.0, Android 15 (Pixel 8)"
+    validations:
+      required: true
+  - type: textarea
+    id: diagnostics
+    attributes:
+      label: Diagnostic report
+      description: >
+        In the app: Settings > Diagnostics > Export report. It contains the printer's capabilities and the
+        protocol conversation, with serial numbers, host names and addresses removed. Review it before pasting.
+      render: text
