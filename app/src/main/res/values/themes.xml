@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- The window theme only matters for the first frame; everything visible is Compose. -->
+    <style name="Theme.Platen" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/platen_window_background</item>
+    </style>
+</resources>
