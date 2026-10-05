@@ -90,6 +90,12 @@ public sealed interface JobEvent {
      */
     public data class Detached(val reason: String) : JobEvent
 
+    /**
+     * Manual duplex: the front sides are printed. The user must put the paper back so the *back* sides print
+     * on the other face; the job waits until they say they have.
+     */
+    public data object NeedsReload : JobEvent
+
     public data object Completed : JobEvent
 
     public data object Canceled : JobEvent

@@ -47,6 +47,16 @@ class FakeBehavior {
 
     /** Number of `Get-Job-Attributes` polls before a job reports `completed` (it is `processing` before). */
     @Volatile var pollsUntilCompleted: Int = 2
+
+    /** If a job carries this attribute, reject it with `client-error-attributes-or-values-not-supported` naming it. */
+    @Volatile var rejectAttribute: String? = null
+
+    /** What `printer-state` and `printer-state-reasons` report (3 idle, 4 processing, 5 stopped). */
+    @Volatile var printerState: Int = 3
+    @Volatile var printerStateReasons: List<String> = listOf("none")
+
+    /** Report jobs as `processing-stopped` (for example out of paper) instead of progressing. */
+    @Volatile var jobStopped: Boolean = false
 }
 
 /**
@@ -234,7 +244,13 @@ class FakeIppPrinter(
 
     private fun getPrinterAttributes(request: IppMessage): IppMessage {
         val requested = opAttr(request, "requested-attributes")?.strings()
-        val all = profile.printerAttributes(uri)
+        val all = profile.printerAttributes(uri).map {
+            when (it.name) {
+                "printer-state" -> IppAttribute("printer-state", io.github.zsozso01.platen.protocol.ipp.IppEnum(behavior.printerState))
+                "printer-state-reasons" -> IppAttribute("printer-state-reasons", behavior.printerStateReasons.map { r -> IppString(IppString.Kind.KEYWORD, r) })
+                else -> it
+            }
+        }
         val chosen = if (requested == null || requested.any { it == "all" || it == "printer-description" || it == "job-template" }) {
             all
         } else {
@@ -260,6 +276,11 @@ class FakeIppPrinter(
             )
         }
         val jobAttrs = request.group(GroupTag.JOB_ATTRIBUTES)?.attributes.orEmpty()
+        behavior.rejectAttribute?.let { name ->
+            jobAttrs.firstOrNull { it.name == name }?.let { offending ->
+                return status(IppStatus.CLIENT_ERROR_ATTRIBUTES_OR_VALUES_NOT_SUPPORTED, request.requestId, "attribute not supported", listOf(offending))
+            }
+        }
         val unsupported = jobAttrs.filter { it.name == "sides" && it.string() !in profile.sides }
         if (!print) {
             return status(if (unsupported.isEmpty()) IppStatus.SUCCESSFUL_OK else IppStatus.SUCCESSFUL_OK_IGNORED_OR_SUBSTITUTED, request.requestId, extra = unsupported)
@@ -286,6 +307,7 @@ class FakeIppPrinter(
         val pollCount = polls.getOrPut(id) { AtomicInteger() }.incrementAndGet()
         val state = when {
             id in canceled -> 7
+            behavior.jobStopped -> 6
             pollCount > behavior.pollsUntilCompleted -> 9
             else -> 5
         }

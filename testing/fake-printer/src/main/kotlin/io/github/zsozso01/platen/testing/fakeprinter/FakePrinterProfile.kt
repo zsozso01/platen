@@ -93,6 +93,7 @@ class FakePrinterProfile(
         ) {
             keywords("print-color-mode-supported", listOf("monochrome"))
             keyword("print-color-mode-default", "monochrome")
+            enums("print-quality-supported", listOf(3, 4, 5))
             addAll("printer-resolution-supported", listOf(IppResolution(300, 300, dpi), IppResolution(600, 600, dpi)))
             add("copies-supported", IppRange(1, 999))
             boolean("page-ranges-supported", true)
