@@ -18,6 +18,13 @@ import java.io.OutputStream
 public interface IppConnection : Closeable {
     public val input: InputStream
     public val output: OutputStream
+
+    /**
+     * Called once a complete HTTP response has been read, before any HTTP error is raised. A carrier that
+     * cannot be closed like a socket (IPP-over-USB) uses this to know the pipe holds no stale bytes and can
+     * go back into use; if [close] arrives without it, the exchange was cut short and the pipe needs recovery.
+     */
+    public fun responseCompleted() {}
 }
 
 /** Opens a fresh [IppConnection]. Called once per request: Platen never reuses an HTTP connection. */
@@ -99,6 +106,7 @@ public class IppHttpTransport(
             } catch (e: IOException) {
                 throw writeFailure ?: e
             }
+            connection.responseCompleted()
             if (response.status != 200) throw IppHttpException(response.status, response.reason, response)
             return response
         }

@@ -95,6 +95,24 @@ public class CancelToken {
     }
 }
 
+/**
+ * A bidirectional byte pipe to a printer that speaks a raw page language with PJL on top: a USB printer
+ * interface, or a TCP socket to port 9100. Blocking; cancel by calling [close] from another thread.
+ */
+public interface ByteChannel : Closeable {
+    /** Writes all of [length] bytes. Blocks while the printer's buffer is full. */
+    @Throws(java.io.IOException::class)
+    public fun write(data: ByteArray, offset: Int, length: Int)
+
+    /**
+     * Reads at most [length] bytes. Returns the count (more than 0), 0 if nothing arrived within
+     * [timeoutMillis], or -1 if the channel is closed or the printer is gone. A channel with no way to
+     * read (a unidirectional USB interface) returns -1 immediately.
+     */
+    @Throws(java.io.IOException::class)
+    public fun read(buffer: ByteArray, offset: Int, length: Int, timeoutMillis: Int): Int
+}
+
 /** The result of asking a printer what it is and what it can do. */
 public class PrinterProbe(
     public val capabilities: PrinterCapabilities,

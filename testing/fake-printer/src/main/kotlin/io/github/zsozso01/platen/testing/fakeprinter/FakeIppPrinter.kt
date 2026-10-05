@@ -45,6 +45,9 @@ class FakeBehavior {
     /** Close the socket after reading this many body bytes of a request (simulates a dropped connection). */
     @Volatile var dropAfterBodyBytes: Int? = null
 
+    /** If set, requests whose `Host` header (without port) differs get `400 Bad Request`, as some USB printers do. */
+    @Volatile var requiredHost: String? = null
+
     /** Number of `Get-Job-Attributes` polls before a job reports `completed` (it is `processing` before). */
     @Volatile var pollsUntilCompleted: Int = 2
 
@@ -78,6 +81,9 @@ class FakeIppPrinter(
     /** Every decoded request, in arrival order. */
     val requests: MutableList<IppMessage> = CopyOnWriteArrayList()
     val jobs: MutableList<ReceivedJob> = CopyOnWriteArrayList()
+
+    /** HTTP headers (names lower-cased) of every request that reached the IPP layer. */
+    val requestHeaders: MutableList<Map<String, String>> = CopyOnWriteArrayList()
 
     private val nextJobId = AtomicInteger(1)
     private val polls = java.util.concurrent.ConcurrentHashMap<Int, AtomicInteger>()
@@ -114,61 +120,84 @@ class FakeIppPrinter(
     // --- HTTP ---------------------------------------------------------------------------------
 
     private fun handle(socket: Socket) {
-        socket.use { serve(socket) }
+        socket.use {
+            socket.soTimeout = 15_000
+            try {
+                serve(socket.getInputStream(), socket.getOutputStream(), keepAlive = false)
+            } catch (_: java.io.IOException) {
+                // Client went away; nothing to do.
+            }
+        }
     }
 
-    private fun serve(socket: Socket) {
-        socket.soTimeout = 15_000
+    /**
+     * Serves HTTP/IPP on any pair of streams: a socket, or a simulated USB pipe. With [keepAlive] it answers
+     * request after request until the input ends (a USB interface is one long connection); otherwise it
+     * answers one request and sends `Connection: close`.
+     */
+    fun serve(rawInput: InputStream, out: java.io.OutputStream, keepAlive: Boolean) {
+        val input = rawInput.buffered()
         try {
-            val input = socket.getInputStream().buffered()
-            val out = socket.getOutputStream()
-            val requestLine = readLine(input) ?: return
-            if (!requestLine.startsWith("POST ")) {
-                respondHttp(out, 405, "Method Not Allowed")
-                return
-            }
-            val requestedPath = requestLine.split(' ').getOrNull(1)
-            if (requestedPath != path) {
-                // Drain the headers politely, then say there is nothing here.
-                while (true) if (readLine(input).isNullOrEmpty()) break
-                respondHttp(out, 404, "Not Found")
-                return
-            }
-            val headers = mutableMapOf<String, String>()
-            while (true) {
-                val line = readLine(input) ?: return
-                if (line.isEmpty()) break
-                val colon = line.indexOf(':')
-                if (colon > 0) headers[line.substring(0, colon).trim().lowercase()] = line.substring(colon + 1).trim()
-            }
-            if (behavior.delayMillis > 0) Thread.sleep(behavior.delayMillis)
-            if (headers["expect"]?.contains("100-continue", ignoreCase = true) == true) {
-                out.write("HTTP/1.1 100 Continue\r\n\r\n".toByteArray())
-                out.flush()
-            }
-            behavior.httpStatus?.let {
-                respondHttp(out, it, "Injected")
-                return
-            }
-            val body = readBody(input, headers) ?: return
-            val ippResponse = try {
-                val decoded = IppDecoder.decode(body)
-                requests += decoded.message
-                dispatch(decoded.message, body.copyOfRange(decoded.dataOffset, body.size))
-            } catch (e: IppParseException) {
-                status(IppStatus.CLIENT_ERROR_BAD_REQUEST, 1, "bad request: ${e.message}")
-            }
-            val bytes = IppEncoder.encode(ippResponse)
-            out.write(
-                (
-                    "HTTP/1.1 200 OK\r\nContent-Type: application/ipp\r\nContent-Length: ${bytes.size}\r\nConnection: close\r\n\r\n"
-                    ).toByteArray(),
-            )
-            out.write(bytes)
-            out.flush()
+            do {
+                if (!exchange(input, out, keepAlive)) return
+            } while (keepAlive)
         } catch (_: java.io.IOException) {
-            // Client went away; nothing to do.
+            // The other side went away.
         }
+    }
+
+    /** Handles one request. Returns false when there was nothing to read (the stream ended). */
+    private fun exchange(input: InputStream, out: java.io.OutputStream, keepAlive: Boolean): Boolean {
+        val requestLine = readLine(input) ?: return false
+        if (!requestLine.startsWith("POST ")) {
+            respondHttp(out, 405, "Method Not Allowed", keepAlive)
+            return true
+        }
+        val headers = mutableMapOf<String, String>()
+        while (true) {
+            val line = readLine(input) ?: return false
+            if (line.isEmpty()) break
+            val colon = line.indexOf(':')
+            if (colon > 0) headers[line.substring(0, colon).trim().lowercase()] = line.substring(colon + 1).trim()
+        }
+        requestHeaders += headers.toMap()
+        val requestedPath = requestLine.split(' ').getOrNull(1)
+        if (requestedPath != path) {
+            readBody(input, headers)
+            respondHttp(out, 404, "Not Found", keepAlive)
+            return true
+        }
+        behavior.requiredHost?.let { required ->
+            if (headers["host"]?.substringBefore(':') != required) {
+                readBody(input, headers)
+                respondHttp(out, 400, "Bad Request", keepAlive)
+                return true
+            }
+        }
+        if (behavior.delayMillis > 0) Thread.sleep(behavior.delayMillis)
+        if (headers["expect"]?.contains("100-continue", ignoreCase = true) == true) {
+            out.write("HTTP/1.1 100 Continue\r\n\r\n".toByteArray())
+            out.flush()
+        }
+        behavior.httpStatus?.let {
+            readBody(input, headers)
+            respondHttp(out, it, "Injected", keepAlive)
+            return true
+        }
+        val body = readBody(input, headers) ?: return false
+        val ippResponse = try {
+            val decoded = IppDecoder.decode(body)
+            requests += decoded.message
+            dispatch(decoded.message, body.copyOfRange(decoded.dataOffset, body.size))
+        } catch (e: IppParseException) {
+            status(IppStatus.CLIENT_ERROR_BAD_REQUEST, 1, "bad request: ${e.message}")
+        }
+        val bytes = IppEncoder.encode(ippResponse)
+        val connection = if (keepAlive) "" else "Connection: close\r\n"
+        out.write("HTTP/1.1 200 OK\r\nContent-Type: application/ipp\r\nContent-Length: ${bytes.size}\r\n$connection\r\n".toByteArray())
+        out.write(bytes)
+        out.flush()
+        return true
     }
 
     private fun readBody(input: InputStream, headers: Map<String, String>): ByteArray? {
@@ -203,8 +232,9 @@ class FakeIppPrinter(
         return out.toByteArray()
     }
 
-    private fun respondHttp(out: java.io.OutputStream, status: Int, reason: String) {
-        out.write("HTTP/1.1 $status $reason\r\nContent-Length: 0\r\nConnection: close\r\n\r\n".toByteArray())
+    private fun respondHttp(out: java.io.OutputStream, status: Int, reason: String, keepAlive: Boolean) {
+        val connection = if (keepAlive) "" else "Connection: close\r\n"
+        out.write("HTTP/1.1 $status $reason\r\nContent-Length: 0\r\n$connection\r\n".toByteArray())
         out.flush()
     }
 
