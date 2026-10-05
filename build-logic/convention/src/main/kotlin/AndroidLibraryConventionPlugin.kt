@@ -6,6 +6,7 @@ import org.gradle.api.tasks.testing.Test
 import org.gradle.kotlin.dsl.configure
 import org.gradle.kotlin.dsl.dependencies
 import org.gradle.kotlin.dsl.withType
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 /** Android library module (platform/ layer). Kotlin support is built into AGP 9. */
 class AndroidLibraryConventionPlugin : Plugin<Project> {
@@ -26,6 +27,11 @@ class AndroidLibraryConventionPlugin : Plugin<Project> {
         }
 
         tasks.withType<Test>().configureEach { useJUnitPlatform() }
+        tasks.withType<KotlinCompile>().configureEach {
+            compilerOptions.allWarningsAsErrors.set(
+                providers.gradleProperty("platen.warningsAsErrors").map(String::toBoolean).orElse(false),
+            )
+        }
 
         dependencies {
             add("testImplementation", libs.lib("kotlin-test-junit5"))

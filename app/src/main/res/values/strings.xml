@@ -1,4 +1,160 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">Platen</string>
+    <string name="notification_channel_jobs">Print jobs</string>
+
+    <!-- Home -->
+    <string name="home_printers">Printers</string>
+    <string name="home_no_printers_title">Add your printer to get started</string>
+    <string name="home_no_printers_body">Platen prints straight to your printer over Wi-Fi. No account, no cloud.</string>
+    <string name="home_add_printer">Add printer</string>
+    <string name="home_print_document">Print a document</string>
+    <string name="home_privacy">Documents go from this phone to your printer and nowhere else.</string>
+    <string name="printer_checking">Checking…</string>
+    <string name="printer_ready">Ready</string>
+    <string name="printer_busy">Printing</string>
+    <string name="printer_stopped">Needs attention</string>
+    <string name="printer_unreachable">Not reachable</string>
+    <string name="printer_remove">Remove</string>
+    <string name="printer_default_hint">Used for the next document</string>
+
+    <!-- Add printer -->
+    <string name="add_title">Add a printer</string>
+    <string name="add_address_label">Printer address</string>
+    <string name="add_address_help">The IP address or host name from the printer\'s network settings page, for example 192.168.1.20, or an ipp:// address.</string>
+    <string name="add_button">Add</string>
+    <string name="add_testing">Contacting the printer…</string>
+    <string name="add_invalid">That does not look like an address. Use something like 192.168.1.20 or printer.local.</string>
+    <string name="add_error_unreachable">Could not reach the printer. Check the address, that the printer is on, and that this phone is on the same Wi-Fi.</string>
+    <string name="add_error_not_a_printer">Something answered, but not as a network printer. Check the address.</string>
+    <string name="add_error_encryption">This printer only accepts encrypted connections, which Platen does not support yet.</string>
+    <string name="add_error_secure">Encrypted ipps:// addresses are not supported yet. Use the plain address of the printer.</string>
+    <string name="add_error_auth">This printer asks for a user name and password, which Platen does not support yet.</string>
+    <string name="cancel">Cancel</string>
+    <string name="close">Close</string>
+    <string name="done">Done</string>
+    <string name="back">Back</string>
+
+    <!-- Opening documents -->
+    <string name="open_error_unreadable">That file could not be read.</string>
+    <string name="open_error_password">That PDF is password protected. Remove the password, then print it.</string>
+    <string name="open_error_unsupported">Platen prints PDFs and images. Export this file as a PDF from the app that made it, then print that.</string>
+    <string name="open_error_corrupt">That PDF could not be opened. It may be damaged.</string>
+    <string name="open_error_large">That file is too large.</string>
+    <string name="open_add_printer_first">Add a printer first.</string>
+
+    <!-- Print screen -->
+    <string name="print_button">Print</string>
+    <string name="print_to">To %1$s</string>
+    <string name="print_page_of">Sheet %1$d of %2$d</string>
+    <string name="print_sheets">%1$d sheets</string>
+    <string name="print_sheet_one">1 sheet</string>
+    <string name="print_loading">Asking the printer what it can do…</string>
+    <string name="print_caps_failed">Could not reach %1$s.</string>
+    <string name="print_retry">Try again</string>
+    <string name="print_nothing">Nothing selected to print</string>
+    <string name="print_cannot_plan">This cannot be printed: %1$s</string>
+    <string name="print_choose_printer">Printer</string>
+
+    <string name="setting_copies">Copies</string>
+    <string name="setting_collate">Collate</string>
+    <string name="setting_color">Colour</string>
+    <string name="color_auto">Auto</string>
+    <string name="color_color">Colour</string>
+    <string name="color_mono">Black and white</string>
+    <string name="setting_sides">Two-sided</string>
+    <string name="sides_one">One side</string>
+    <string name="sides_long">Both sides, flip on long edge</string>
+    <string name="sides_short">Both sides, flip on short edge</string>
+    <string name="setting_paper">Paper size</string>
+    <string name="setting_pages">Pages</string>
+    <string name="pages_all">All pages</string>
+    <string name="pages_hint">All, or for example 1-3, 5</string>
+    <string name="pages_invalid">Use page numbers like 1-3, 5, 8-</string>
+    <string name="pages_odd">Odd</string>
+    <string name="pages_even">Even</string>
+    <string name="pages_reverse">Reverse order</string>
+    <string name="setting_scaling">Scaling</string>
+    <string name="scaling_shrink">Shrink to fit</string>
+    <string name="scaling_fit">Fit to page</string>
+    <string name="scaling_fill">Fill page</string>
+    <string name="scaling_actual">Actual size</string>
+    <string name="scaling_custom">Custom</string>
+    <string name="scaling_percent">Zoom (%)</string>
+    <string name="setting_orientation">Orientation</string>
+    <string name="orientation_auto">Automatic</string>
+    <string name="orientation_portrait">Portrait</string>
+    <string name="orientation_landscape">Landscape</string>
+    <string name="setting_pages_per_sheet">Pages per sheet</string>
+    <string name="pages_per_sheet_n">%1$d per sheet</string>
+    <string name="pages_per_sheet_border">Draw borders</string>
+    <string name="setting_booklet">Booklet</string>
+    <string name="setting_margins">Margins</string>
+    <string name="margins_default">Printer default</string>
+    <string name="margins_none">None</string>
+    <string name="margins_custom">Custom</string>
+    <string name="margins_mm">Margin (mm)</string>
+    <string name="setting_quality">Quality</string>
+    <string name="quality_draft">Draft</string>
+    <string name="quality_normal">Normal</string>
+    <string name="quality_high">High</string>
+    <string name="setting_economy">Save toner or ink</string>
+    <string name="setting_tray">Paper tray</string>
+    <string name="tray_auto">Automatic</string>
+    <string name="section_basic">Basics</string>
+    <string name="section_layout">Layout</string>
+    <string name="section_quality">Quality and paper</string>
+    <string name="section_notes">What will happen</string>
+    <string name="section_details">Technical details</string>
+
+    <!-- Decisions -->
+    <string name="note_by_app">Platen does this itself</string>
+    <string name="note_manual_duplex">Manual two-sided printing: Platen prints the front sides, asks you to put the paper back, then prints the back sides.</string>
+    <string name="note_collated_copies">Copies are sent one after another so they come out in order.</string>
+
+    <!-- Job -->
+    <string name="job_starting">Starting…</string>
+    <string name="job_preparing">Preparing page %1$d of %2$d</string>
+    <string name="job_sending">Sending to the printer…</string>
+    <string name="job_sending_percent">Sending to the printer… %1$d%%</string>
+    <string name="job_accepted">The printer has the job</string>
+    <string name="job_printing">Printing…</string>
+    <string name="job_printing_sheets">Printing… %1$d sheet(s) done</string>
+    <string name="job_done_title">Sent to the printer</string>
+    <string name="job_done_body">The printer reports the job as finished.</string>
+    <string name="job_canceled">Printing was cancelled.</string>
+    <string name="job_detached">The job was sent, but the printer stopped answering, so Platen cannot say how it ended. It may still print. Check the printer.</string>
+    <string name="job_failed_title">Could not print</string>
+    <string name="job_reload_title">Put the paper back in</string>
+    <string name="job_reload_body">The front sides are printed. Take the printed pages, turn them over and put them back into the paper tray, then continue.</string>
+    <string name="job_reload_continue">Paper is back, print the other sides</string>
+    <string name="job_attention_title">The printer needs attention</string>
+    <string name="job_cancel">Cancel printing</string>
+    <string name="job_hide">Hide</string>
+
+    <!-- Failures -->
+    <string name="fail_unreachable">Could not reach the printer. Check that it is on and on the same Wi-Fi.</string>
+    <string name="fail_auth">The printer wants a user name and password, which Platen does not support yet.</string>
+    <string name="fail_encryption">The printer only accepts encrypted connections, which Platen does not support yet.</string>
+    <string name="fail_certificate">The printer\'s security certificate is not trusted.</string>
+    <string name="fail_rejected">The printer refused the job: %1$s</string>
+    <string name="fail_preparation">Platen could not prepare the document: %1$s</string>
+    <string name="fail_usb">USB problem: %1$s</string>
+    <string name="fail_unexpected">Something unexpected went wrong.</string>
+
+    <!-- Printer issues -->
+    <string name="issue_paper_out">The printer is out of paper.</string>
+    <string name="issue_paper_jam">There is a paper jam.</string>
+    <string name="issue_cover_open">A cover is open.</string>
+    <string name="issue_door_open">A door is open.</string>
+    <string name="issue_toner_low">Toner is low.</string>
+    <string name="issue_toner_empty">Toner is empty.</string>
+    <string name="issue_ink_low">Ink is low.</string>
+    <string name="issue_ink_empty">Ink is empty.</string>
+    <string name="issue_output_full">The output tray is full.</string>
+    <string name="issue_offline">The printer is offline.</string>
+    <string name="issue_paused">The printer is paused.</string>
+    <string name="issue_busy">The printer is busy. Try again in a moment.</string>
+    <string name="issue_tray_missing">A paper tray is missing.</string>
+    <string name="issue_other">The printer reports a problem.</string>
 </resources>

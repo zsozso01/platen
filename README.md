@@ -12,9 +12,17 @@ Open source · No ads · No account · No telemetry
 
 </div>
 
-> **Pre-alpha, built in public.** The protocol foundations are written and tested; the app is not yet
-> usable for printing. Follow along in the [roadmap](docs/ROADMAP.md), and see
+> **Pre-alpha, built in public.** Printing over Wi-Fi works end to end in the app against a *fake* printer
+> (a real HTTP/IPP server used for development), but **nothing has been tried on a real printer yet**, and
+> USB printing is not built. Follow along in the [roadmap](docs/ROADMAP.md), and see
 > [what works today](#what-works-today).
+
+<p align="center">
+  <img src="docs/images/home.png" width="260" alt="Home screen with one printer, ready">
+  &nbsp;&nbsp;
+  <img src="docs/images/print.png" width="260" alt="Print screen: live preview, sheet count and settings">
+</p>
+<p align="center"><sub>Screenshots from an Android 15 emulator printing to the built-in fake printer (no real printer involved).</sub></p>
 
 Android's built-in print dialog gives you a handful of options, and manufacturer apps want accounts,
 show ads and only support their own printers. Platen is a different take: a printing app that talks
@@ -56,8 +64,10 @@ module, not touching the rest. Details in [docs/ARCHITECTURE.md](docs/ARCHITECTU
 | ✅ Print planner: from what a printer reports, decides per setting whether the printer or Platen does it (PDF pass-through vs raster, duplex, collation, ...) | tested |
 | ✅ Print engine and IPP route: plan, render, send, follow, cancel, report paper-out, manual duplex | tested end to end against a fake printer on a real socket |
 | ✅ Fake IPP printer for development without hardware | tested |
-| 🚧 The Android side of Wi-Fi printing: PDF rendering with `PdfRenderer`, mDNS discovery, a screen to pick a document and print | next |
-| 📋 USB printing, settings UI, previews, presets, share target, Android print service | see [roadmap](docs/ROADMAP.md) |
+| ✅ The Android app: add a printer by address, pick a PDF or image (or share/"open with" into Platen), live preview, settings built from what the printer reports, print, progress, cancel, manual duplex | works on an Android 15 emulator against the fake printer; **not yet on real hardware** |
+| ✅ Rendering with Android's own `PdfRenderer` in bounded-memory bands, including sideways pages and several pages per sheet | 25 instrumented tests on an emulator |
+| 🚧 Finding printers automatically (mDNS) and the first real-printer test | next |
+| 📋 USB printing, saved presets, Android print service, translations | see [roadmap](docs/ROADMAP.md) |
 
 ## First validation printers
 

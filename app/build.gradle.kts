@@ -1,6 +1,7 @@
 plugins {
     id("platen.android.application")
     id("platen.android.compose")
+    alias(libs.plugins.kotlin.serialization)
 }
 
 android {
@@ -29,8 +30,15 @@ android {
 
 dependencies {
     implementation(projects.core.model)
+    implementation(projects.core.engine)
+    implementation(projects.backend.raster)
+    implementation(projects.route.ipp)
+    implementation(projects.transport.network)
+    implementation(projects.platform.render)
+    implementation(libs.kotlinx.serialization.json)
 
     implementation(libs.androidx.core.ktx)
+    implementation(libs.compose.material.icons.core)
     implementation(libs.androidx.activity.compose)
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.lifecycle.viewmodel.compose)

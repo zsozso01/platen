@@ -11,7 +11,7 @@ settings, then UX.
 |---|---|---|
 | M0 | **Foundation**: repo, Gradle build, CI, docs, community files | ✅ done |
 | M1 | **Foundations**: protocol libraries (IEEE 1284 Device ID, PJL, IPP codec/HTTP/client/typed attributes, PWG Raster), domain model, layout planner, fake printer for tests | ✅ done |
-| M2 | **Wi-Fi MVP** (target: HP DeskJet 3700). Done and tested without hardware: capability probe, planner, PWG Raster, IPP `Print-Job`, job status, cancel, manual duplex. **Still to do:** `PdfRenderer` rendering, mDNS discovery, the settings and print screens | 🚧 in progress |
+| M2 | **Wi-Fi MVP** (target: HP DeskJet 3700). Done and tested without hardware: capability probe, planner, PWG Raster, IPP `Print-Job`, job status, cancel, manual duplex. The Android app (add by address, PDF/image rendering, preview, settings, print, progress, cancel, manual duplex) is built and works against the fake printer on an emulator. **Still to do:** mDNS discovery and the first test on a real DeskJet | 🚧 in progress |
 | M3 | **USB MVP** (target: HP LaserJet E42540): USB host transport, interface probing, Device ID, IPP-over-USB, PJL + native PDF fallback, permission and error UX | 📋 |
 | M4 | **PC-class settings**: page ranges, reverse, odd/even, pages per sheet, booklet, scaling (actual / fit / fill / custom), margins, saved presets, print preview | 📋 |
 | M5 | **System integration**: share/"open with" target, Android `PrintService` provider that can open Platen's own UI | 📋 |

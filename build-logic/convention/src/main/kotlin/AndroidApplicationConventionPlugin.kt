@@ -6,6 +6,7 @@ import org.gradle.api.tasks.testing.Test
 import org.gradle.kotlin.dsl.configure
 import org.gradle.kotlin.dsl.dependencies
 import org.gradle.kotlin.dsl.withType
+import org.jetbrains.kotlin.gradle.tasks.KotlinCompile
 
 /** The :app module. Build types, signing and versioning are configured in app/build.gradle.kts. */
 class AndroidApplicationConventionPlugin : Plugin<Project> {
@@ -25,6 +26,11 @@ class AndroidApplicationConventionPlugin : Plugin<Project> {
         }
 
         tasks.withType<Test>().configureEach { useJUnitPlatform() }
+        tasks.withType<KotlinCompile>().configureEach {
+            compilerOptions.allWarningsAsErrors.set(
+                providers.gradleProperty("platen.warningsAsErrors").map(String::toBoolean).orElse(false),
+            )
+        }
 
         dependencies {
             add("testImplementation", libs.lib("kotlin-test-junit5"))

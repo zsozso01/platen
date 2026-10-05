@@ -26,3 +26,6 @@ keystore.properties
 
 # Per-machine environment overrides (JDK/SDK/cache paths)
 scripts/env.local.*
+
+# Jobs received by the standalone fake printer
+fake-printer-job-*

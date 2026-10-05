@@ -82,7 +82,8 @@ E42540 can do all of it in hardware, and Platen should use the hardware.
 ## Module map
 
 ```
-app/                    Android application: Compose UI, wiring            ✅ shell
+app/                    Android application: Compose UI, printer store,
+                        job manager and foreground service                 ✅
 build-logic/            Gradle convention plugins                          ✅
 
 core/
@@ -108,12 +109,14 @@ route/                  Job protocols: capability probe + send + follow
   ipp/                  IPP: attribute mapping, job ticket, status         ✅
 
 transport/              Byte pipes
-  network/              TCP and TLS sockets                                📋
+  network/              Plain TCP connector and printer-address parsing    ✅
+                        (TLS / ipps with trust-on-first-use                📋)
 
 platform/               Android specifics (Android libraries)
+  render/               PdfRenderer and image documents, banded rasteriser,
+                        document opener                                    ✅
   usb/                  UsbManager transport and printer-interface probing 📋
   discovery/            mDNS / NSD                                         📋
-  render/               PdfRenderer, imposition                            📋
   printservice/         Android PrintService                               📋
 
 testing/
