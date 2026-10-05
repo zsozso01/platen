@@ -11,6 +11,7 @@ import org.gradle.kotlin.dsl.withType
 class AndroidLibraryConventionPlugin : Plugin<Project> {
     override fun apply(target: Project) = with(target) {
         pluginManager.apply("com.android.library")
+        group = platenGroup
 
         extensions.configure<LibraryExtension> {
             compileSdk = PLATEN_COMPILE_SDK

@@ -20,6 +20,7 @@ import org.jetbrains.kotlin.gradle.dsl.KotlinJvmProjectExtension
 class KotlinJvmConventionPlugin : Plugin<Project> {
     override fun apply(target: Project) = with(target) {
         pluginManager.apply("org.jetbrains.kotlin.jvm")
+        group = platenGroup
 
         extensions.configure<JavaPluginExtension> {
             sourceCompatibility = JavaVersion.VERSION_17

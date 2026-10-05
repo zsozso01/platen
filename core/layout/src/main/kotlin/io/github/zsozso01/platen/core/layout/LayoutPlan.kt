@@ -19,7 +19,18 @@ public data class Placement(
 )
 
 /** One face of one sheet. */
-public data class Side(val placements: List<Placement>)
+public data class Side(val placements: List<Placement>) {
+    /** The same face after [transform] is applied to the whole sheet (a mirror or half turn for duplex back sides). */
+    public fun transformedBy(transform: Affine): Side = Side(
+        placements.map {
+            it.copy(
+                transform = transform.after(it.transform),
+                clip = transform.mapBounds(it.clip),
+                bounds = transform.mapBounds(it.bounds),
+            )
+        },
+    )
+}
 
 /**
  * The result of imposing a document on sheets: what goes where, in print order. Consumed by both the

@@ -2,7 +2,6 @@ plugins {
     id("platen.kotlin.jvm")
 }
 
-group = "io.github.zsozso01.platen"
 
 dependencies {
     api(projects.core.model)
@@ -10,4 +9,5 @@ dependencies {
     api(libs.kotlinx.coroutines.core)
 
     testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(projects.testing.support)
 }

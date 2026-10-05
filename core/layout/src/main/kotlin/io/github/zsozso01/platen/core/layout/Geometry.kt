@@ -66,6 +66,15 @@ public data class Affine(
     public companion object {
         public val IDENTITY: Affine = Affine(1.0, 0.0, 0.0, 1.0, 0.0, 0.0)
 
+        /** Mirrors the sheet left to right: `x' = width - x`. */
+        public fun mirrorX(sheetWidth: Double): Affine = Affine(-1.0, 0.0, 0.0, 1.0, sheetWidth, 0.0)
+
+        /** Mirrors the sheet top to bottom: `y' = height - y`. */
+        public fun mirrorY(sheetHeight: Double): Affine = Affine(1.0, 0.0, 0.0, -1.0, 0.0, sheetHeight)
+
+        /** Turns the sheet half a turn about its centre. */
+        public fun rotate180(sheetWidth: Double, sheetHeight: Double): Affine = Affine(-1.0, 0.0, 0.0, -1.0, sheetWidth, sheetHeight)
+
         /**
          * Places a page of size [page], uniformly scaled by [scale] and turned clockwise by
          * [rotationDegrees] (0, 90, 180 or 270), so that it is centred in [into].

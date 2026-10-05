@@ -1,6 +1,5 @@
 plugins {
     id("platen.kotlin.jvm")
-    application
 }
 
 
@@ -9,10 +8,7 @@ kotlin {
     explicitApi = org.jetbrains.kotlin.gradle.dsl.ExplicitApiMode.Disabled
 }
 
-application {
-    mainClass.set("io.github.zsozso01.platen.testing.fakeprinter.FakePrinterMainKt")
-}
-
 dependencies {
-    api(projects.protocol.ipp)
+    api(projects.core.engine)
+    api(projects.protocol.raster)
 }

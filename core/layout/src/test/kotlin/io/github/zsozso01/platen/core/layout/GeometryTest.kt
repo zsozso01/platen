@@ -63,3 +63,46 @@ class GeometryTest {
         assertFailsWith<IllegalArgumentException> { PageGeometry(0.0, 5.0) }
     }
 }
+
+class SideTransformTest {
+    private fun near(a: Double, b: Double) = assertTrue(kotlin.math.abs(a - b) < 1e-9, "$a vs $b")
+
+    @Test
+    fun `mirrors and half turn move the corners where expected`() {
+        near(100.0, Affine.mirrorX(100.0).mapX(0.0, 30.0))
+        near(30.0, Affine.mirrorX(100.0).mapY(0.0, 30.0))
+        near(200.0, Affine.mirrorY(200.0).mapY(20.0, 0.0))
+        val half = Affine.rotate180(100.0, 200.0)
+        near(100.0, half.mapX(0.0, 0.0))
+        near(200.0, half.mapY(0.0, 0.0))
+        near(0.0, half.mapX(100.0, 200.0))
+    }
+
+    @Test
+    fun `transforming a side keeps transform, clip and bounds consistent`() {
+        val page = PageGeometry(100.0, 100.0)
+        val cell = Rect(0.0, 0.0, 100.0, 100.0) // upper half of a 100 x 200 sheet
+        val t = Affine.placeCentred(page, 1.0, 0, cell)
+        val placement = Placement(1, t, cell, t.mapBounds(Rect(0.0, 0.0, 100.0, 100.0)), false, 1.0)
+        near(0.0, placement.bounds.top)
+
+        val turned = Side(listOf(placement)).transformedBy(Affine.rotate180(100.0, 200.0)).placements.single()
+        // Half a turn moves the page from the upper half of the sheet to the lower half.
+        near(100.0, turned.bounds.top)
+        near(200.0, turned.bounds.bottom)
+        near(100.0, turned.clip.top)
+        // The page's own origin, top-left, now lands at the sheet's bottom-right of that cell.
+        near(100.0, turned.transform.mapX(0.0, 0.0))
+        near(200.0, turned.transform.mapY(0.0, 0.0))
+        val mapped = turned.transform.mapBounds(Rect(0.0, 0.0, 100.0, 100.0))
+        near(mapped.top, turned.bounds.top)
+        near(mapped.bottom, turned.bounds.bottom)
+
+        val mirrored = Side(listOf(placement)).transformedBy(Affine.mirrorY(200.0)).placements.single()
+        near(100.0, mirrored.bounds.top)
+        near(200.0, mirrored.bounds.bottom)
+        // Mirrored top to bottom, the page's top-left corner is now at the *bottom*-left.
+        near(0.0, mirrored.transform.mapX(0.0, 0.0))
+        near(200.0, mirrored.transform.mapY(0.0, 0.0))
+    }
+}

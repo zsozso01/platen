@@ -15,6 +15,9 @@ import io.github.zsozso01.platen.core.model.PrinterCapabilities
 import io.github.zsozso01.platen.core.model.Quality
 import io.github.zsozso01.platen.core.model.Scaling
 import io.github.zsozso01.platen.core.model.Sides
+import io.github.zsozso01.platen.testing.support.SyntheticDocument
+import io.github.zsozso01.platen.testing.support.inkjetCaps
+import io.github.zsozso01.platen.testing.support.laserCaps
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith

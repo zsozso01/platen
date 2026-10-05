@@ -61,10 +61,17 @@ public interface Backend {
     public fun write(job: BackendJob, out: OutputStream, progress: (JobEvent) -> Unit)
 }
 
+/**
+ * One pass worth of work for a [Backend].
+ *
+ * @property faces for raster backends: the faces to write, in order, already carrying their duplex
+ *   transforms (see [RasterFaces]). Empty for pass-through.
+ */
 public class BackendJob(
     public val plan: PrintPlan,
     public val document: DocumentSource,
     public val rasterizer: SideRasterizer?,
+    public val faces: List<RasterFace> = emptyList(),
 )
 
 /** A cooperative cancellation handle shared by the engine and a blocking job protocol. */

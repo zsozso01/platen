@@ -78,6 +78,18 @@ public sealed interface JobEvent {
     /** The printer reports it is printing. [sheetsDone] is null if it does not say. */
     public data class Printing(val sheetsDone: Int?) : JobEvent
 
+    /**
+     * The printer needs a person to do something (add paper, close a cover) but the job is still alive
+     * and will continue once they do. Not a final state.
+     */
+    public data class Attention(val issues: List<PrinterIssue>) : JobEvent
+
+    /**
+     * The job was sent, but the printer stopped answering status requests, so Platen cannot say how it
+     * ended. It may well have printed. Final state of tracking, not necessarily of printing.
+     */
+    public data class Detached(val reason: String) : JobEvent
+
     public data object Completed : JobEvent
 
     public data object Canceled : JobEvent

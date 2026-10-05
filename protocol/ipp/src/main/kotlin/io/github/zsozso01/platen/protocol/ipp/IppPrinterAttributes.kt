@@ -87,6 +87,12 @@ public class IppPrinterAttributes(public val group: IppGroup) {
     public val mediaSourcesSupported: List<String> get() = strings("media-source-supported")
     public val mediaTypesSupported: List<String> get() = strings("media-type-supported")
 
+    /** Unprintable-border values the printer lists, in hundredths of a millimetre. The largest is the safe default border. */
+    public val mediaTopMarginsSupported: List<Int> get() = get("media-top-margin-supported")?.ints().orEmpty()
+    public val mediaBottomMarginsSupported: List<Int> get() = get("media-bottom-margin-supported")?.ints().orEmpty()
+    public val mediaLeftMarginsSupported: List<Int> get() = get("media-left-margin-supported")?.ints().orEmpty()
+    public val mediaRightMarginsSupported: List<Int> get() = get("media-right-margin-supported")?.ints().orEmpty()
+
     /** One collection per paper/tray combination the printer can use, when it reports `media-col-database`. */
     public val mediaColDatabase: List<IppCollection> get() = get("media-col-database")?.collections().orEmpty()
 

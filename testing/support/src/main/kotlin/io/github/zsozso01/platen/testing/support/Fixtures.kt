@@ -1,5 +1,7 @@
-package io.github.zsozso01.platen.core.engine
+package io.github.zsozso01.platen.testing.support
 
+import io.github.zsozso01.platen.core.engine.DocumentSource
+import io.github.zsozso01.platen.core.engine.PdfFile
 import io.github.zsozso01.platen.core.layout.PageGeometry
 import io.github.zsozso01.platen.core.model.ColorMode
 import io.github.zsozso01.platen.core.model.DocumentFormat
