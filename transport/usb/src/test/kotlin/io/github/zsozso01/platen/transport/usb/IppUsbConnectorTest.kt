@@ -14,6 +14,7 @@ import io.github.zsozso01.platen.protocol.ipp.IppOperation
 import io.github.zsozso01.platen.protocol.ipp.ippMessage
 import io.github.zsozso01.platen.testing.fakeprinter.FakeIppPrinter
 import io.github.zsozso01.platen.testing.fakeprinter.FakePrinterProfile
+import io.github.zsozso01.platen.testing.usb.SimulatedIppUsbDevice
 import io.github.zsozso01.platen.route.ipp.IppEndpoint
 import io.github.zsozso01.platen.route.ipp.IppJobProtocol
 import java.io.ByteArrayInputStream

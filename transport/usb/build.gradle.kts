@@ -8,5 +8,6 @@ dependencies {
     api(projects.protocol.ieee1284)
 
     testImplementation(projects.testing.fakePrinter)
+    testImplementation(projects.testing.usb)
     testImplementation(projects.route.ipp)
 }

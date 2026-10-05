@@ -1,6 +1,7 @@
-package io.github.zsozso01.platen.transport.usb
+package io.github.zsozso01.platen.testing.usb
 
 import io.github.zsozso01.platen.testing.fakeprinter.FakeIppPrinter
+import io.github.zsozso01.platen.transport.usb.UsbIppPipe
 import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream

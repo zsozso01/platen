@@ -2,6 +2,7 @@ package io.github.zsozso01.platen.transport.usb
 
 import io.github.zsozso01.platen.protocol.ipp.IppConnection
 import io.github.zsozso01.platen.protocol.ipp.IppConnector
+import java.io.Closeable
 import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
@@ -31,8 +32,11 @@ public class IppUsbConnector(
     /** Reads and the stop check are done in slices of this length. */
     private val sliceMillis: Int = 100,
     private val writeChunkBytes: Int = 16 * 1024,
-) : IppConnector {
+) : IppConnector, Closeable {
     private val idle = LinkedBlockingDeque<UsbIppPipe>(pipes)
+
+    @Volatile
+    private var shutDown = false
     private val live = AtomicInteger(pipes.size)
 
     /** Number of interfaces still usable. */
@@ -47,7 +51,25 @@ public class IppUsbConnector(
     }
 
     private fun giveBack(pipe: UsbIppPipe) {
-        idle.addLast(pipe)
+        if (shutDown) {
+            live.decrementAndGet()
+            runCatching(pipe::close)
+        } else {
+            idle.addLast(pipe)
+        }
+    }
+
+    /**
+     * Releases the interfaces: idle pipes are closed now, and a pipe still lent out is closed when its
+     * connection is. Connections already open keep working until they are closed.
+     */
+    override fun close() {
+        shutDown = true
+        while (true) {
+            val pipe = idle.pollFirst() ?: break
+            live.decrementAndGet()
+            runCatching(pipe::close)
+        }
     }
 
     private fun retire(pipe: UsbIppPipe) {
