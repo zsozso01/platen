@@ -35,7 +35,25 @@ public enum class Provenance {
 }
 
 /** The facets of [PrinterCapabilities] that have a [Provenance]. */
-public enum class CapabilityKey { FORMATS, SIDES, COLOR, QUALITY, RESOLUTION, MEDIA, TRAYS, COPIES, PAGE_RANGES, ORIENTATION, MARGINS, RASTER }
+public enum class CapabilityKey {
+    FORMATS, SIDES, COLOR, QUALITY, RESOLUTION, MEDIA, TRAYS, COPIES, PAGE_RANGES, ORIENTATION, MARGINS, RASTER, SCALING, NUMBER_UP, FINISHING,
+}
+
+/** How the *printer* can scale a document it prints itself (PDF pass-through). Mirrors IPP `print-scaling`. */
+public enum class PrinterScaling {
+    /** The printer chooses between fit and fill. */
+    AUTO,
+
+    /** Shrink to fit if too big, otherwise leave alone. */
+    SHRINK_TO_FIT,
+
+    FIT,
+
+    FILL,
+
+    /** No scaling. */
+    NONE,
+}
 
 /** Parameters the printer accepts for raster formats (PWG Raster / Apple Raster), needed when it has no PDF. */
 public data class RasterProfile(
@@ -73,6 +91,11 @@ public data class PrinterCapabilities(
     /** Largest `copies` value accepted, or null if unknown. */
     val maxCopies: Int? = null,
     val supportsPageRanges: Boolean = false,
+    /** Pages per sheet the printer can impose itself. */
+    val numberUp: Set<Int> = setOf(1),
+    val printerScaling: Set<PrinterScaling> = emptySet(),
+    /** The printer can fold and staple booklets itself (IPP finishing `booklet-maker`). */
+    val bookletMaker: Boolean = false,
     val orientations: Set<Orientation> = setOf(Orientation.PORTRAIT),
     /** The unprintable border, when known. */
     val unprintableMargins: Margins? = null,
