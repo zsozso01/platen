@@ -127,6 +127,13 @@ class FakeIppPrinter(
                 respondHttp(out, 405, "Method Not Allowed")
                 return
             }
+            val requestedPath = requestLine.split(' ').getOrNull(1)
+            if (requestedPath != path) {
+                // Drain the headers politely, then say there is nothing here.
+                while (true) if (readLine(input).isNullOrEmpty()) break
+                respondHttp(out, 404, "Not Found")
+                return
+            }
             val headers = mutableMapOf<String, String>()
             while (true) {
                 val line = readLine(input) ?: return
