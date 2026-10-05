@@ -213,7 +213,7 @@ class PjlJobProtocolTest {
         val events = run(protocol(printer))
         assertEquals(JobEvent.Completed, events.terminal())
         assertTrue(events.none { it is JobEvent.Printing }, "no start report was received")
-        assertEquals(1, printer.jobs.size)
+        awaitJobs(printer, 1)
         assertTrue(printer.allPjlLines.count { it == "@PJL INFO STATUS" } >= 2)
     }
 
@@ -222,7 +222,7 @@ class PjlJobProtocolTest {
         val printer = fake(answersPjl = false)
         val events = run(protocol(printer))
         assertEquals(JobEvent.Completed, events.terminal())
-        assertEquals(1, printer.jobs.size)
+        awaitJobs(printer, 1)
     }
 
     @Test
@@ -366,6 +366,7 @@ class PjlJobProtocolTest {
         val events = run(protocol(open), submission(ByteArray(10_000)), cancel)
         assertEquals(JobEvent.Canceled, events.terminal())
         assertEquals(2, printer.connections, "the job was closed on a second connection")
+        awaitJobs(printer, 1) // the fake parses on its own thread; a slow machine may not have reached the footer yet
         assertTrue(printer.jobs.single().ended, "the printer saw the end of the job")
     }
 
