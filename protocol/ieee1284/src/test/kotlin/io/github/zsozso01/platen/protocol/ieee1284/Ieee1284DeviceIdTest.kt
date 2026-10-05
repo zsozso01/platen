@@ -76,6 +76,9 @@ class Ieee1284DeviceIdTest {
     fun `display name falls back to manufacturer and model`() {
         assertEquals("Acme X1", Ieee1284DeviceId.parse("MFG:Acme;MDL:X1;").displayName)
         assertNull(Ieee1284DeviceId.parse("CLS:PRINTER;").displayName)
+        assertEquals("HP LaserJet MFP E42540", Ieee1284DeviceId.parse("MFG:HP;MDL:HP LaserJet MFP E42540;").displayName, "the make is not repeated")
+        assertEquals("Hewlett-Packard HP LaserJet", Ieee1284DeviceId.parse("MFG:Hewlett-Packard;MDL:HP LaserJet;").displayName)
+        assertEquals("Solo", Ieee1284DeviceId.parse("MDL:Solo;").displayName)
     }
 
     // --- byte form (USB GET_DEVICE_ID) --------------------------------------------------------

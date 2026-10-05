@@ -15,4 +15,6 @@ application {
 
 dependencies {
     api(projects.protocol.ipp)
+    api(projects.protocol.pjl)
+    api(projects.core.engine)
 }

@@ -30,10 +30,20 @@ public class Ieee1284DeviceId private constructor(
     public val languages: Set<PrinterLanguage>
         get() = commandSets.mapNotNullTo(linkedSetOf(), PrinterLanguage::fromToken)
 
-    /** A human-friendly name: the description, else "manufacturer model", else the model. */
+    /**
+     * A human-friendly name: the description, else "manufacturer model", else the model. Many printers
+     * repeat the manufacturer inside the model (`MFG:HP;MDL:HP LaserJet ...`); it is not shown twice.
+     */
     public val displayName: String?
-        get() = description?.takeIf { it.isNotBlank() }
-            ?: listOfNotNull(manufacturer, model).joinToString(" ").takeIf { it.isNotBlank() }
+        get() = description?.takeIf { it.isNotBlank() } ?: run {
+            val make = manufacturer
+            val name = model
+            when {
+                name == null -> make
+                make == null || name.startsWith(make, ignoreCase = true) -> name
+                else -> "$make $name"
+            }?.takeIf { it.isNotBlank() }
+        }
 
     private fun field(vararg keys: String): String? = keys.firstNotNullOfOrNull { fields[it]?.takeIf(String::isNotBlank) }
 

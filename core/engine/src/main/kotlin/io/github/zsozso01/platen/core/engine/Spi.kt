@@ -98,6 +98,10 @@ public class CancelToken {
 /**
  * A bidirectional byte pipe to a printer that speaks a raw page language with PJL on top: a USB printer
  * interface, or a TCP socket to port 9100. Blocking; cancel by calling [close] from another thread.
+ *
+ * [write] and [read] may be called at the same time from two threads (a printer's status messages must
+ * be read while a long job is still being written, or it can stall). Two concurrent calls of the same
+ * kind are not supported.
  */
 public interface ByteChannel : Closeable {
     /** Writes all of [length] bytes. Blocks while the printer's buffer is full. */

@@ -34,6 +34,11 @@ public data class PjlJobSettings(
     val orientation: Orientation? = null,
     /** Anything else, sent verbatim as `@PJL SET <key>=<value>`. Keys are validated to `[A-Z0-9_]+`. */
     val extra: Map<String, String> = emptyMap(),
+    /**
+     * Ask the printer to report job and device status (`USTATUS`) on its read channel: when the job starts
+     * and ends, and when the printer needs attention. Printers that do not support it ignore the request.
+     */
+    val statusReporting: Boolean = false,
 ) {
     public enum class Binding(internal val pjl: String) { LONG_EDGE("LONGEDGE"), SHORT_EDGE("SHORTEDGE") }
 
@@ -61,8 +66,17 @@ public class PjlJobBuilder(private val settings: PjlJobSettings = PjlJobSettings
     /** Everything that precedes the page data, ending with `@PJL ENTER LANGUAGE=...`. */
     public fun header(language: Pjl.Language): ByteArray = buildString {
         append(Pjl.UEL)
-        sanitizedName?.let { append("@PJL JOB NAME=\"").append(it).append('"').append(Pjl.EOL) }
-            ?: append("@PJL").append(Pjl.EOL)
+        if (settings.statusReporting) {
+            // Must come before the JOB command to cover the whole job.
+            append("@PJL USTATUS JOB=ON").append(Pjl.EOL)
+            append("@PJL USTATUS DEVICE=ON").append(Pjl.EOL)
+        }
+        if (sanitizedName != null) {
+            append("@PJL JOB NAME=\"").append(sanitizedName).append('"').append(Pjl.EOL)
+        } else if (!settings.statusReporting) {
+            // A bare "@PJL" opens the PJL context for printers that want one before the first command.
+            append("@PJL").append(Pjl.EOL)
+        }
         settings.copies?.let { set("COPIES", it.coerceIn(1, MAX_COPIES).toString()) }
         settings.quantity?.let { set("QTY", it.coerceIn(1, MAX_COPIES).toString()) }
         settings.duplex?.let { set("DUPLEX", if (it) "ON" else "OFF") }

@@ -53,6 +53,14 @@ class PjlJobBuilderTest {
     }
 
     @Test
+    fun `status reporting is switched on before the job starts`() {
+        val named = String(PjlJobBuilder(PjlJobSettings(jobName = "x", statusReporting = true)).header(Pjl.Language.PDF)).visible()
+        assertEquals("<UEL>@PJL USTATUS JOB=ON\n@PJL USTATUS DEVICE=ON\n@PJL JOB NAME=\"x\"\n@PJL ENTER LANGUAGE=PDF\n", named)
+        val unnamed = String(PjlJobBuilder(PjlJobSettings(statusReporting = true)).header(Pjl.Language.PDF)).visible()
+        assertEquals("<UEL>@PJL USTATUS JOB=ON\n@PJL USTATUS DEVICE=ON\n@PJL ENTER LANGUAGE=PDF\n", unnamed)
+    }
+
+    @Test
     fun `binding is dropped when duplex is off`() {
         val h = String(PjlJobBuilder(PjlJobSettings(duplex = false, binding = PjlJobSettings.Binding.SHORT_EDGE)).header(Pjl.Language.PCL))
         assertTrue("DUPLEX=OFF" in h)
