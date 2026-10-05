@@ -53,8 +53,10 @@ module, not touching the rest. Details in [docs/ARCHITECTURE.md](docs/ARCHITECTU
 | ✅ IEEE 1284 Device ID parsing (USB printers) | tested |
 | ✅ PWG Raster writer and reader (the format driverless inkjets accept) | matches the spec's own samples byte for byte |
 | ✅ Layout planner: page ranges, reverse, odd/even, scaling, margins, orientation, pages per sheet, booklet | tested |
+| ✅ Print planner: from what a printer reports, decides per setting whether the printer or Platen does it (PDF pass-through vs raster, duplex, collation, ...) | tested |
+| ✅ Print engine and IPP route: plan, render, send, follow, cancel, report paper-out, manual duplex | tested end to end against a fake printer on a real socket |
 | ✅ Fake IPP printer for development without hardware | tested |
-| 🚧 Wi-Fi printing (mDNS discovery, PDF → PWG Raster, IPP printing, manual duplex) | next |
+| 🚧 The Android side of Wi-Fi printing: PDF rendering with `PdfRenderer`, mDNS discovery, a screen to pick a document and print | next |
 | 📋 USB printing, settings UI, previews, presets, share target, Android print service | see [roadmap](docs/ROADMAP.md) |
 
 ## First validation printers

@@ -89,8 +89,8 @@ core/
   model/                Domain types: printer, capabilities, settings, job ✅
   layout/               Page selection, scaling, orientation, margins,
                         n-up and booklet imposition as per-side placements ✅
-  engine/               Backend / JobProtocol / Transport / Discovery
-                        interfaces, printer planner, job runner            📋
+  engine/               Backend / JobProtocol / SideRasterizer interfaces,
+                        the printer planner, the job runner                ✅
 
 protocol/               Wire formats. Pure Kotlin, no Android, no core.
   ieee1284/             Device ID parser                                   ✅
@@ -100,8 +100,12 @@ protocol/               Wire formats. Pure Kotlin, no Android, no core.
                         (Apple Raster / URF to follow)                     📋
 
 backend/                Page-language writers (depend on core + protocol)
-  pdf/                  PDF pass-through                                   📋
-  raster/               Render pages in bands and feed the raster writers  📋
+  raster/               Stream planned faces into the PWG Raster writer    ✅
+                        (PDF pass-through needs no writer: the engine
+                        copies the original file)
+
+route/                  Job protocols: capability probe + send + follow
+  ipp/                  IPP: attribute mapping, job ticket, status         ✅
 
 transport/              Byte pipes
   network/              TCP and TLS sockets                                📋
@@ -114,6 +118,8 @@ platform/               Android specifics (Android libraries)
 
 testing/
   fake-printer/         In-process IPP printer; also runnable standalone   ✅
+  support/              Synthetic documents, capability fixtures shaped
+                        like the two target printers, a block rasteriser   ✅
 ```
 
 **Dependency rules** (enforced by review, and later by a Gradle check):
@@ -149,6 +155,7 @@ write. USB transfers get the same treatment (cancel the pending request, then cl
 |---|---|
 | Parsers and encoders | Unit tests with byte-exact expectations; fuzz-style tests for decoders ✅ |
 | Client against a printer | `FakeIppPrinter` speaks real HTTP/IPP over a loopback socket, with fault injection ✅ |
+| Whole pipeline | Planner, raster backend, PWG writer, IPP client and job protocol against the fake printer, checking the bytes and attributes it received ✅ |
 | Raster output | The PWG Raster writer reproduces the spec's own sample encodings byte for byte ✅; golden-file tests of rendered pages 📋 |
 | Layout | Property tests: every placed page stays inside the printable area; booklet order is exact ✅ |
 | UI | Compose tests on the emulator, driving the app against `FakeIppPrinter` 📋 |
