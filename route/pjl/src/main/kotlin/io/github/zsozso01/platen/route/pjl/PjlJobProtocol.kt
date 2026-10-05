@@ -152,7 +152,7 @@ public class PjlJobProtocol(
 
                 val settings = PjlJobTicket.build(submission.settings, variables).copy(jobName = name, statusReporting = bidirectional)
                 val job = PjlJobBuilder(settings).also { builder = it }
-                trace("job: ${job.header(language ?: Pjl.Language.PDF).toString(Charsets.US_ASCII).replace(Pjl.UEL, "<UEL>").replace("\r\n", " | ")}")
+                trace("job: ${job.header(language ?: Pjl.Language.PDF).toString(Charsets.US_ASCII).replace(Pjl.UEL, "<UEL>").replace(Regex("NAME=\"[^\"]*\""), "NAME=\"...\"").replace("\r\n", " | ")}")
 
                 if (wrapInPjl) write(ch, job.header(language!!))
                 sendPayload(ch)
@@ -229,7 +229,7 @@ public class PjlJobProtocol(
         private fun handle(response: PjlResponse) {
             val event = PjlJobEvent.from(response)
             if (event != null) {
-                trace("printer: job ${event.type} name=${event.name} pages=${event.pages}")
+                trace("printer: job ${event.type} pages=${event.pages}") // never the name: it is the document's
                 if (!nameMatches(event.name)) return
                 sawJobEvent = true
                 when (event.type) {

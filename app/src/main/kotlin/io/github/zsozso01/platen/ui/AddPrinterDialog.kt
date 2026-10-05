@@ -28,15 +28,23 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import io.github.zsozso01.platen.R
+import io.github.zsozso01.platen.platform.usb.AttachedUsbPrinter
 import io.github.zsozso01.platen.route.ipp.AddressProbeException
 import io.github.zsozso01.platen.transport.network.DiscoveredPrinter
 import kotlinx.coroutines.launch
 
 @Composable
-fun AddPrinterDialog(discovered: List<DiscoveredPrinter>, onDismiss: () -> Unit, add: suspend (String) -> AddResult) {
+fun AddPrinterDialog(
+    discovered: List<DiscoveredPrinter>,
+    usbPrinters: List<AttachedUsbPrinter>,
+    onDismiss: () -> Unit,
+    add: suspend (String) -> AddResult,
+    addUsb: suspend (AttachedUsbPrinter) -> AddUsbResult,
+) {
     var text by rememberSaveable { mutableStateOf("") }
     var busy by remember { mutableStateOf(false) }
     var error by remember { mutableStateOf<Int?>(null) }
+    var usbFailure by remember { mutableStateOf<String?>(null) }
     val scope = rememberCoroutineScope()
 
     fun submit(address: String = text) {
@@ -59,12 +67,43 @@ fun AddPrinterDialog(discovered: List<DiscoveredPrinter>, onDismiss: () -> Unit,
         }
     }
 
+    fun submitUsb(printer: AttachedUsbPrinter) {
+        if (busy) return
+        busy = true
+        error = null
+        scope.launch {
+            when (val result = addUsb(printer)) {
+                is AddUsbResult.Added -> onDismiss()
+                AddUsbResult.PermissionDenied -> error = R.string.add_usb_denied
+                AddUsbResult.Unsupported -> error = R.string.add_usb_unsupported
+                is AddUsbResult.Failed -> {
+                    usbFailure = result.message
+                    error = R.string.add_usb_failed
+                }
+            }
+            busy = false
+        }
+    }
+
     AlertDialog(
         onDismissRequest = { if (!busy) onDismiss() },
         title = { Text(stringResource(R.string.add_title)) },
         text = {
             Column(Modifier.verticalScroll(rememberScrollState())) {
-                Text(stringResource(R.string.add_nearby_title), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+                Text(stringResource(R.string.add_usb_title), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary)
+                if (usbPrinters.isEmpty()) {
+                    Text(stringResource(R.string.add_usb_none), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(vertical = 8.dp))
+                }
+                usbPrinters.forEach { printer ->
+                    Column(Modifier.fillMaxWidth().clickable(enabled = !busy) { submitUsb(printer) }.padding(vertical = 10.dp)) {
+                        Text(printer.info.displayName, style = MaterialTheme.typography.titleMedium)
+                        Text(stringResource(if (printer.hasPermission) R.string.add_usb_allowed else R.string.add_usb_tap), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+                if (error == R.string.add_usb_failed && usbFailure != null) {
+                    Text(stringResource(R.string.add_usb_failed_detail, usbFailure.orEmpty()), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+                }
+                Text(stringResource(R.string.add_nearby_title), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(top = 8.dp))
                 if (discovered.isEmpty()) {
                     Row(Modifier.padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                         CircularProgressIndicator(Modifier.padding(end = 12.dp).size(18.dp), strokeWidth = 2.dp)

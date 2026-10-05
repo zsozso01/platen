@@ -29,6 +29,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -49,7 +50,9 @@ fun HomeScreen(
     onSelect: (String) -> Unit,
     onAddPrinter: () -> Unit,
     onRemove: (SavedPrinter) -> Unit,
+    onAllowUsb: (SavedPrinter) -> Unit,
     onPickDocument: () -> Unit,
+    onShareDiagnostics: () -> Unit,
     runningJob: JobBanner?,
     onOpenJob: () -> Unit,
 ) {
@@ -74,7 +77,7 @@ fun HomeScreen(
                 Text(stringResource(R.string.home_printers), style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.primary, modifier = Modifier.padding(vertical = 8.dp))
                 LazyColumn(Modifier.weight(1f).selectableGroup(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     items(printers, key = { it.id }) { printer ->
-                        PrinterCard(printer, statuses[printer.id] ?: PrinterStatus.Checking, selected = printer.id == (selectedId ?: printers.first().id), onSelect = { onSelect(printer.id) }, onRemove = { onRemove(printer) })
+                        PrinterCard(printer, statuses[printer.id] ?: PrinterStatus.Checking, selected = printer.id == (selectedId ?: printers.first().id), onSelect = { onSelect(printer.id) }, onRemove = { onRemove(printer) }, onAllowUsb = { onAllowUsb(printer) })
                     }
                 }
                 Spacer(Modifier.height(12.dp))
@@ -87,12 +90,15 @@ fun HomeScreen(
                     Text(stringResource(R.string.home_print_document))
                 }
             }
-            Text(
-                stringResource(R.string.home_privacy),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.padding(vertical = 12.dp),
-            )
+            Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    stringResource(R.string.home_privacy),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.weight(1f),
+                )
+                TextButton(onClick = onShareDiagnostics) { Text(stringResource(R.string.diagnostics_share)) }
+            }
         }
     }
 }
@@ -114,7 +120,7 @@ private fun EmptyState(modifier: Modifier, onAdd: () -> Unit) {
 }
 
 @Composable
-private fun PrinterCard(printer: SavedPrinter, status: PrinterStatus, selected: Boolean, onSelect: () -> Unit, onRemove: () -> Unit) {
+private fun PrinterCard(printer: SavedPrinter, status: PrinterStatus, selected: Boolean, onSelect: () -> Unit, onRemove: () -> Unit, onAllowUsb: () -> Unit) {
     Card(
         modifier = Modifier.fillMaxWidth().selectable(selected = selected, onClick = onSelect, role = Role.RadioButton),
         border = if (selected) BorderStroke(2.dp, MaterialTheme.colorScheme.primary) else null,
@@ -123,9 +129,10 @@ private fun PrinterCard(printer: SavedPrinter, status: PrinterStatus, selected: 
             RadioButton(selected = selected, onClick = null, modifier = Modifier.padding(12.dp))
             Column(Modifier.weight(1f)) {
                 Text(printer.name, style = MaterialTheme.typography.titleMedium)
-                Text(printer.hostHeader, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(if (printer.isUsb) stringResource(R.string.printer_usb) else printer.hostHeader, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 StatusLine(status)
             }
+            if (status == PrinterStatus.NeedsPermission) TextButton(onClick = onAllowUsb) { Text(stringResource(R.string.printer_usb_allow)) }
             IconButton(onClick = onRemove) {
                 Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.printer_remove))
             }
@@ -142,6 +149,8 @@ private fun StatusLine(status: PrinterStatus) {
                 Text(stringResource(R.string.printer_checking), style = MaterialTheme.typography.bodySmall)
             }
             PrinterStatus.Unreachable -> Text(stringResource(R.string.printer_unreachable), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
+            PrinterStatus.Disconnected -> Text(stringResource(R.string.printer_usb_disconnected), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            PrinterStatus.NeedsPermission -> Text(stringResource(R.string.printer_usb_needs_permission), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)
             is PrinterStatus.Online -> {
                 val problem = status.issues.firstOrNull { it.severity != io.github.zsozso01.platen.core.model.Severity.INFO }
                 when {

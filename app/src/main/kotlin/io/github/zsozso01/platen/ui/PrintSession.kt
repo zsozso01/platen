@@ -20,9 +20,6 @@ import io.github.zsozso01.platen.job.RefCountedDocument
 import io.github.zsozso01.platen.job.asSource
 import io.github.zsozso01.platen.platform.render.AndroidSideRasterizer
 import io.github.zsozso01.platen.platform.render.ImageDocument
-import io.github.zsozso01.platen.route.ipp.IppEndpoint
-import io.github.zsozso01.platen.route.ipp.IppJobProtocol
-import io.github.zsozso01.platen.transport.network.TcpConnector
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
@@ -164,7 +161,7 @@ class PrintSession(
         scope.launch {
             val result = withContext(Dispatchers.IO) {
                 runCatching {
-                    IppJobProtocol(IppEndpoint(TcpConnector(printer.host, printer.port, connectTimeoutMillis = 4_000), printer.hostHeader, printer.path, printer.uri)).probe()
+                    container.printerRouter.openAllowingPrompt(printer, connectTimeoutMillis = 4_000).use { it.protocol.probe() }
                 }
             }
             if (_state.value.printer?.id != printer.id) return@launch // the user picked another one meanwhile

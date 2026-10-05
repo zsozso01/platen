@@ -33,6 +33,8 @@ dependencies {
     implementation(projects.core.engine)
     implementation(projects.backend.raster)
     implementation(projects.route.ipp)
+    implementation(projects.route.usb)
+    implementation(projects.platform.usb)
     implementation(projects.transport.network)
     implementation(projects.platform.render)
     implementation(projects.platform.discovery)

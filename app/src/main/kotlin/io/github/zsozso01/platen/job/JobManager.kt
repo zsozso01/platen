@@ -7,13 +7,11 @@ import io.github.zsozso01.platen.core.engine.PrintEngine
 import io.github.zsozso01.platen.core.engine.PrintRequest
 import io.github.zsozso01.platen.core.model.DocumentFormat
 import io.github.zsozso01.platen.core.model.JobEvent
+import io.github.zsozso01.platen.core.model.PrintFailure
 import io.github.zsozso01.platen.core.model.PrintSettings
 import io.github.zsozso01.platen.core.model.PrinterCapabilities
 import io.github.zsozso01.platen.data.SavedPrinter
 import io.github.zsozso01.platen.platform.render.AndroidSideRasterizer
-import io.github.zsozso01.platen.route.ipp.IppEndpoint
-import io.github.zsozso01.platen.route.ipp.IppJobProtocol
-import io.github.zsozso01.platen.transport.network.TcpConnector
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -23,6 +21,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import java.io.File
 
 /** What the UI shows about the job that is running or just finished. There is at most one at a time. */
@@ -49,6 +48,8 @@ data class JobUiState(
 class JobManager(
     private val context: Context,
     private val scope: CoroutineScope,
+    private val router: PrinterRouter,
+    private val diagnostics: DiagnosticsLog,
 ) {
     private val spool = File(context.cacheDir, "spool").apply { mkdirs() }
     private val _state = MutableStateFlow<JobUiState?>(null)
@@ -71,35 +72,41 @@ class JobManager(
         _state.value = JobUiState(document.name, printer.name)
         ContextCompat.startForegroundService(context, PrintJobService.intent(context))
 
-        val protocol = IppJobProtocol(
-            IppEndpoint(TcpConnector(printer.host, printer.port), printer.hostHeader, printer.path, printer.uri),
-            pollIntervalMillis = 1_000,
-        )
         val engine = PrintEngine(
             backends = mapOf(DocumentFormat.PWG_RASTER to PwgRasterBackend()),
             spoolDir = spool,
             rasterizer = { AndroidSideRasterizer(held) },
             dispatcher = Dispatchers.IO,
         )
-        val request = PrintRequest(
-            protocol = protocol,
-            document = held.asSource(),
-            settings = settings,
-            capabilities = capabilities,
-            jobName = document.name,
-            awaitReload = {
-                val answer = CompletableDeferred<Boolean>()
-                reloadAnswer = answer
-                answer.await()
-            },
-        )
         job = scope.launch {
+            var route: PrinterRoute? = null
             try {
+                route = try {
+                    withContext(Dispatchers.IO) { router.open(printer, connectTimeoutMillis = 10_000) }
+                } catch (e: java.io.IOException) {
+                    diagnostics.log("job: could not open the printer: ${e.message}")
+                    publish(JobEvent.Failed(if (printer.isUsb) PrintFailure.UsbProblem(e.message ?: "The printer is not available", e) else PrintFailure.Unreachable(e)))
+                    return@launch
+                }
+                val request = PrintRequest(
+                    protocol = route.protocol,
+                    document = held.asSource(),
+                    settings = settings,
+                    capabilities = capabilities,
+                    jobName = document.name,
+                    awaitReload = {
+                        val answer = CompletableDeferred<Boolean>()
+                        reloadAnswer = answer
+                        answer.await()
+                    },
+                )
+                diagnostics.log("job: started on ${if (printer.isUsb) "usb" else "network"} printer")
                 engine.print(request).collect { event -> publish(event) }
             } catch (e: kotlinx.coroutines.CancellationException) {
                 publish(JobEvent.Canceled)
                 throw e
             } finally {
+                runCatching { route?.close() }
                 held.close()
                 PrintJobService.stop(context)
             }
@@ -127,6 +134,11 @@ class JobManager(
     }
 
     private fun publish(event: JobEvent) {
+        when (event) {
+            JobEvent.Completed, JobEvent.Canceled, is JobEvent.Failed, is JobEvent.Detached, is JobEvent.Attention, JobEvent.NeedsReload ->
+                diagnostics.log("job: ${event::class.simpleName}${(event as? JobEvent.Failed)?.let { " ${it.failure::class.simpleName}" }.orEmpty()}")
+            else -> Unit
+        }
         _state.update { current ->
             current ?: return@update null
             when (event) {

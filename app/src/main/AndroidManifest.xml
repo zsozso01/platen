@@ -40,6 +40,14 @@
                 <data android:mimeType="image/*" />
             </intent-filter>
 
+            <!-- A USB printer was plugged in -->
+            <intent-filter>
+                <action android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED" />
+            </intent-filter>
+            <meta-data
+                android:name="android.hardware.usb.action.USB_DEVICE_ATTACHED"
+                android:resource="@xml/usb_device_filter" />
+
             <!-- Share to Platen -->
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />

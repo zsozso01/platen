@@ -29,7 +29,7 @@ fun jobStatusText(job: JobUiState): String = when (val e = job.latest) {
 }
 
 @Composable
-fun JobDialog(job: JobUiState, onCancel: () -> Unit, onReloaded: () -> Unit, onHide: () -> Unit, onDone: () -> Unit) {
+fun JobDialog(job: JobUiState, onCancel: () -> Unit, onReloaded: () -> Unit, onHide: () -> Unit, onDone: () -> Unit, onShareDiagnostics: () -> Unit) {
     val finished = job.finished
     when {
         job.waitingForReload -> AlertDialog(
@@ -55,13 +55,18 @@ fun JobDialog(job: JobUiState, onCancel: () -> Unit, onReloaded: () -> Unit, onH
                     when (finished) {
                         JobEvent.Completed -> stringResource(R.string.job_done_body)
                         JobEvent.Canceled -> stringResource(R.string.job_canceled)
-                        is JobEvent.Detached -> stringResource(R.string.job_detached)
+                        is JobEvent.Detached -> stringResource(R.string.job_detached) + "\n\n" + finished.reason
                         is JobEvent.Failed -> failureText(finished.failure)
                         else -> ""
                     },
                 )
             },
             confirmButton = { TextButton(onClick = onDone) { Text(stringResource(R.string.done)) } },
+            dismissButton = if (finished is JobEvent.Failed || finished is JobEvent.Detached) {
+                { TextButton(onClick = onShareDiagnostics) { Text(stringResource(R.string.diagnostics_share)) } }
+            } else {
+                null
+            },
         )
         else -> AlertDialog(
             onDismissRequest = onHide,

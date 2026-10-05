@@ -2,9 +2,12 @@ package io.github.zsozso01.platen
 
 import android.app.Application
 import io.github.zsozso01.platen.data.PrinterStore
+import io.github.zsozso01.platen.job.DiagnosticsLog
 import io.github.zsozso01.platen.job.JobManager
+import io.github.zsozso01.platen.job.PrinterRouter
 import io.github.zsozso01.platen.platform.discovery.NsdPrinterDiscovery
 import io.github.zsozso01.platen.platform.render.DocumentOpener
+import io.github.zsozso01.platen.platform.usb.UsbPrinterMonitor
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -16,7 +19,12 @@ class AppContainer(app: Application) {
     val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     val printerStore = PrinterStore(File(app.filesDir, "printers.json"))
     val documentOpener = DocumentOpener(app)
-    val jobManager = JobManager(app, applicationScope)
+    val diagnostics = DiagnosticsLog()
+
+    /** Listens for USB printers for as long as the process lives: a job must notice an unplugged cable too. */
+    val usbMonitor = UsbPrinterMonitor(app).also { it.start() }
+    val printerRouter = PrinterRouter(usbMonitor, diagnostics)
+    val jobManager = JobManager(app, applicationScope, printerRouter, diagnostics)
     val discovery = NsdPrinterDiscovery(app)
 }
 

@@ -3,6 +3,7 @@ package io.github.zsozso01.platen
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.hardware.usb.UsbManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
@@ -67,6 +68,11 @@ class MainActivity : ComponentActivity() {
     private fun handleIncoming(intent: Intent?) {
         val uri: Uri? = when (intent?.action) {
             Intent.ACTION_VIEW -> intent.data
+            UsbManager.ACTION_USB_DEVICE_ATTACHED -> {
+                // A printer was plugged in while Platen was closed (or Android offered it to Platen): offer to add it.
+                if (viewModel.hasUnsavedUsbPrinter()) needsPrinterFirst = true
+                null
+            }
             Intent.ACTION_SEND -> if (Build.VERSION.SDK_INT >= 33) intent.getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java) else @Suppress("DEPRECATION") intent.getParcelableExtra(Intent.EXTRA_STREAM)
             else -> null
         }
@@ -83,7 +89,14 @@ private fun PlatenApp(vm: AppViewModel, needsPrinterFirst: Boolean, onNeedsPrint
     val job by vm.job.collectAsStateWithLifecycle()
     val openError by vm.openError.collectAsStateWithLifecycle()
     val discovered by vm.discovered.collectAsStateWithLifecycle()
+    val usbPrinters by vm.usbPrinters.collectAsStateWithLifecycle()
     val context = androidx.compose.ui.platform.LocalContext.current
+
+    // The user chooses where the diagnostics text goes; Platen itself sends it nowhere.
+    val shareDiagnostics: () -> Unit = {
+        val send = Intent(Intent.ACTION_SEND).setType("text/plain").putExtra(Intent.EXTRA_TEXT, vm.diagnosticsReport(context))
+        context.startActivity(Intent.createChooser(send, null))
+    }
 
     var showAdd by rememberSaveable { mutableStateOf(false) }
     var jobHidden by rememberSaveable { mutableStateOf(false) }
@@ -129,7 +142,9 @@ private fun PlatenApp(vm: AppViewModel, needsPrinterFirst: Boolean, onNeedsPrint
             onSelect = vm::selectPrinter,
             onAddPrinter = { showAdd = true },
             onRemove = { vm.removePrinter(it.id) },
+            onAllowUsb = vm::allowUsb,
             onPickDocument = { picker.launch(arrayOf("application/pdf", "image/*")) },
+            onShareDiagnostics = shareDiagnostics,
             runningJob = job?.takeIf { jobHidden || it.finished != null }?.let { JobBanner(it.documentName, if (it.finished != null) stringResource(R.string.job_done_title) else jobStatusText(it)) },
             onOpenJob = { jobHidden = false },
         )
@@ -139,7 +154,7 @@ private fun PlatenApp(vm: AppViewModel, needsPrinterFirst: Boolean, onNeedsPrint
         if (showAdd) vm.startDiscovery()
         onDispose { vm.stopDiscovery() }
     }
-    if (showAdd) AddPrinterDialog(discovered = discovered, onDismiss = { showAdd = false }, add = { vm.addPrinter(it) })
+    if (showAdd) AddPrinterDialog(discovered = discovered, usbPrinters = usbPrinters, onDismiss = { showAdd = false }, add = { vm.addPrinter(it) }, addUsb = { vm.addUsbPrinter(it) })
 
     job?.let { current ->
         if (!jobHidden || current.finished != null || current.waitingForReload) {
@@ -149,6 +164,7 @@ private fun PlatenApp(vm: AppViewModel, needsPrinterFirst: Boolean, onNeedsPrint
                 onReloaded = { vm.confirmReloaded() },
                 onHide = { jobHidden = true },
                 onDone = { vm.dismissJob(); jobHidden = false },
+                onShareDiagnostics = shareDiagnostics,
             )
         }
     }

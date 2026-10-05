@@ -6,7 +6,7 @@
     <!-- Home -->
     <string name="home_printers">Printers</string>
     <string name="home_no_printers_title">Add your printer to get started</string>
-    <string name="home_no_printers_body">Platen prints straight to your printer over Wi-Fi. No account, no cloud.</string>
+    <string name="home_no_printers_body">Platen prints straight to your printer over Wi-Fi or a USB cable. No account, no cloud.</string>
     <string name="home_add_printer">Add printer</string>
     <string name="home_print_document">Print a document</string>
     <string name="home_privacy">Documents go from this phone to your printer and nowhere else.</string>
@@ -39,6 +39,21 @@
     <string name="close">Close</string>
     <string name="done">Done</string>
     <string name="back">Back</string>
+
+    <!-- USB -->
+    <string name="printer_usb">USB cable</string>
+    <string name="printer_usb_disconnected">Not connected</string>
+    <string name="printer_usb_needs_permission">Plugged in, needs your permission</string>
+    <string name="printer_usb_allow">Allow</string>
+    <string name="add_usb_title">Printers on the USB cable</string>
+    <string name="add_usb_none">None connected. Plug the printer into the phone with a USB OTG cable.</string>
+    <string name="add_usb_tap">Tap to allow access and add</string>
+    <string name="add_usb_allowed">Tap to add</string>
+    <string name="add_usb_denied">Android did not allow access to the printer. Try again and choose OK.</string>
+    <string name="add_usb_unsupported">This USB device does not offer a printer interface that Platen can use.</string>
+    <string name="add_usb_failed">The printer did not answer over USB. Check that its USB port is enabled in the printer\'s settings (managed printers often have it switched off).</string>
+    <string name="add_usb_failed_detail">Details: %1$s</string>
+    <string name="diagnostics_share">Diagnostics</string>
 
     <!-- Opening documents -->
     <string name="open_error_unreadable">That file could not be read.</string>
