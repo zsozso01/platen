@@ -1,0 +1,25 @@
+# Gradle / Android
+.gradle/
+build/
+!gradle/wrapper/gradle-wrapper.jar
+local.properties
+*.iml
+.idea/
+.kotlin/
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Signing material — never commit
+*.jks
+*.keystore
+keystore.properties
+
+# OS / editor
+.DS_Store
+*.swp
+.vscode/
+
+# Local scratch (printer dumps captured while debugging may contain serial numbers / hostnames)
+/scratch/
+/captures-private/
