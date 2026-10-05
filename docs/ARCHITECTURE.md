@@ -102,13 +102,20 @@ protocol/               Wire formats. Pure Kotlin, no Android, no core.
 
 backend/                Page-language writers (depend on core + protocol)
   raster/               Stream planned faces into the PWG Raster writer    ✅
+  pdf/                  A PDF whose pages are the rendered faces (for
+                        printers that take PDF but no raster format)       ✅
                         (PDF pass-through needs no writer: the engine
                         copies the original file)
 
 route/                  Job protocols: capability probe + send + follow
   ipp/                  IPP: attribute mapping, job ticket, status         ✅
+  pjl/                  PJL over any byte channel: probe, settings, USTATUS
+                        tracking, honest completion rules                  ✅
+  usb/                  Chooses IPP-over-USB or PJL for a USB printer      ✅
 
 transport/              Byte pipes
+  usb/                  Interface planner, IPP-over-USB connector, host
+                        access rules (all pure Kotlin, simulated in tests) ✅
   network/              Plain TCP connector, printer-address parsing,
                         DNS-SD record interpretation                       ✅
                         (TLS / ipps with trust-on-first-use                📋)
@@ -118,13 +125,16 @@ platform/               Android specifics (Android libraries)
                         document opener                                    ✅
   discovery/            mDNS via NsdManager (DNS-SD records are interpreted
                         in transport/network, which is unit-tested)        ✅
-  usb/                  UsbManager transport and printer-interface probing 📋
+  usb/                  Thin Android layer: descriptors, UsbDeviceConnection
+                        as a UsbHostConnection, attach/detach, permission  ✅
   printservice/         Android PrintService                               📋
 
 testing/
   fake-printer/         In-process IPP printer; also runnable standalone   ✅
   support/              Synthetic documents, capability fixtures shaped
                         like the two target printers, a block rasteriser   ✅
+  usb/                  A USB host simulator and simulated attached
+                        printers in front of the fake IPP and PJL printers ✅
 ```
 
 **Dependency rules** (enforced by review, and later by a Gradle check):
@@ -135,6 +145,25 @@ testing/
 * `backend/*` and `transport/*` depend on `core/*` and, where needed, `protocol/*`.
 * `platform/*` may use Android APIs and depend on `core/*`, `protocol/*`, `backend/*`, `transport/*`.
 * Only `app` depends on everything.
+
+## USB
+
+A USB printer is reached through four small layers, so that nearly all of it runs in plain JVM tests:
+
+1. `transport:usb` `UsbInterfacePlanner`: from the interface descriptors (every alternate setting is its
+   own descriptor), decides between IPP over USB (two or more protocol-4 interfaces, or HP's `255/9/1`) and
+   the classic interface (protocol 2 before 1), and lists both as a fallback chain.
+2. `transport:usb` `HostUsbPrinterAccess` on a tiny `UsbHostConnection` interface: claim, then select the
+   alternate setting; one-packet reads; a failed or stalled write is an error; drain plus class
+   `SOFT_RESET` to repair a cut-short exchange; `GET_DEVICE_ID` in either byte order. Android's
+   `UsbDeviceConnection` maps onto `UsbHostConnection` one to one (`platform:usb`).
+3. `route:usb` `UsbJobProtocol`: probes IPP over USB first (waiting out `503` while the printer boots), falls
+   back to the classic interface with PJL, and maps connection failures to a USB problem the UI can explain.
+   Modes `AUTO`, `IPP_USB`, `PJL` and `RAW` exist for troubleshooting.
+4. `route:pjl` `PjlJobProtocol`: see [ADR 0009](adr/0009-usb-routes-and-honest-job-tracking.md).
+
+`testing:usb` simulates the host at the transfer level (unclaimed interfaces fail, oversize reads babble,
+timeouts look like errors, unplugging fails at once) in front of the fake IPP and PJL printers.
 
 ## Concurrency and cancellation
 

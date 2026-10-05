@@ -50,14 +50,35 @@ It is a FutureSmart 5 device. HP's own Linux driver treats it as a PostScript pr
   variables the printer lists. Where the printer does not honour a PJL setting for PDF, Platen falls back to
   PostScript with in-language `setpagedevice`, or to IPP.
 
-## Plan for Platen
+## How Platen drives it (built, simulated, not yet tried on this printer)
 
-1. Enumerate USB interfaces on attach. Prefer an IPP-over-USB interface (`7/1/4` or `255/9/1`) when present.
-2. Over IPP-over-USB: `Get-Printer-Attributes`, then `application/pdf` with IPP job attributes.
-3. Otherwise over the classic printer interface (`7/1/2`): read the Device ID, ask `@PJL INFO` for what is
-   supported, send `UEL`, PJL header, `ENTER LANGUAGE=PDF`, the PDF, `UEL`, `@PJL EOJ`.
-4. Read device status (`USTATUS`) for progress and errors.
-5. Same IPP client also works over Ethernet or Wi-Fi if IPP printing is enabled on the printer.
+1. On plug-in Platen lists the device and asks Android for permission. It prefers IPP over USB (`7/1/4` or
+   `255/9/1`, two or more interfaces) and falls back to the classic interface (`7/1/2`).
+2. Over IPP-over-USB: `Get-Printer-Attributes` (waiting out `503` while the printer boots), then
+   `application/pdf` with IPP job attributes (`sides`, `media`, `copies`, ...), then job polling.
+3. Over the classic interface: read the Device ID, ask `@PJL INFO ID/CONFIG/VARIABLES/STATUS`, and send
+   `UEL`, `USTATUS` requests, `@PJL JOB`, only the `@PJL SET` variables the printer listed,
+   `ENTER LANGUAGE=PDF`, the PDF, `UEL`, `@PJL EOJ`. Job start/end and attention (paper out) come back as
+   `USTATUS`. Copies use `QTY` when listed (collated job copies), else `COPIES`.
+4. A PDF that can be sent unchanged goes through untouched. Anything that changes the layout (page ranges,
+   reverse order, n-up, booklets, custom margins, manual duplex) and image documents are rendered into a PDF of
+   page images at up to 600 dpi, so every Platen setting works on this printer.
+5. Troubleshooting modes (per printer, saved in `printers.json`): IPP over USB only, PJL only, raw (bare document).
+
+## First test on a real unit
+
+Plug it into the phone with an OTG cable, add it in Platen, print a one-page PDF, then use **Diagnostics**
+and paste the text into a [printer report](https://github.com/zsozso01/platen/issues/new?template=printer_report.yml).
+It contains no serial number or document name. What to look for:
+
+* The *Add* dialog lists it, and after "Allow" the card shows *Ready*. If it says the printer did not answer,
+  check **Enable Device USB** (see above).
+* Which route was used: the log says `usb: using IPP over USB` or `PJL on printer interface N`.
+* Whether the job completed *and the sheet came out*. PJL completion relies on the `USTATUS JOB END` report;
+  an end with `PAGES=0` is treated as a failure, which is an **assumption** to confirm.
+* Duplex, tray and copies: whether the printer honours the PJL `SET` variables for PDF, or whether only
+  IPP does. If PJL ignores them, that is the case for sending PostScript with `setpagedevice` (not built).
+* Cancelling mid-job, and unplugging mid-job: what the app shows, and whether the printer recovers.
 
 ## Unknown (what a real unit must answer)
 

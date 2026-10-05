@@ -33,6 +33,26 @@ real hardware are marked **unverified**; test them on a device before relying on
   or the attach-launched activity; USB attach alone is not an exemption from the background-start rules.
 * Android 16 Advanced Protection can block *new* USB data connections while the screen is locked.
 
+### How Platen applies this, and the known weak spot
+
+* Reads are one packet (`maxPacketSize`) at a time with 100 ms timeouts, so a timeout cannot swallow data.
+  A failed transfer that returns well before its timeout is treated as an error (unplug, stall); one that
+  takes the full timeout is just "nothing arrived".
+* **Writes are synchronous with a long timeout (two minutes per 16 KiB chunk) and any failure ends the job**,
+  because the platform loses the count of a timed-out write. The weak spot: **cancelling while a chunk is
+  blocked** (a printer that has stopped reading, for example out of paper with a full buffer) can wait for
+  that timeout, because closing a `UsbDeviceConnection` does not interrupt a synchronous `bulkTransfer` on
+  another thread. IPP over USB sends a class `SOFT_RESET` to try to end the transfer; the PJL route closes
+  the connection. **Unverified.** If it bites on hardware, the fix is an asynchronous write path
+  (`UsbRequest.queue`, `requestWait(timeout)`, `cancel()`) behind the same `UsbHostConnection`.
+* A printer that is out of paper normally keeps accepting data until its own buffer is full, which for a
+  laser with hundreds of megabytes is more than a typical job, so the job is delivered and the printer
+  reports the problem afterwards (USTATUS), which Platen shows as attention.
+* The `USB_DEVICE_ATTACHED` intent filter matches USB class 7 on the device or any interface. Whether a
+  given printer triggers it (some report class 0 with interfaces only) needs hardware.
+* Android lets the user tick "use by default for this device" on the attach prompt, after which the
+  permission is granted without the dialog.
+
 ## Network
 
 * Discover with `NsdManager` for `_ipp._tcp` and `_ipps._tcp`; ignore `_printer._tcp` entries with port 0.

@@ -13,3 +13,5 @@ decision, consequences. A superseded record stays in the folder with its status 
 | [0006](0006-build-baseline.md) | Build baseline and pinned versions | accepted |
 | [0007](0007-own-ipp-client.md) | Write our own IPP client instead of depending on jipp | accepted |
 | [0008](0008-rendering-and-pdf-handling.md) | Rendering, layout and PDF handling | accepted |
+| [0009](0009-usb-routes-and-honest-job-tracking.md) | USB routes (IPP over USB first, PJL fallback) and honest job tracking | accepted |
+| [0010](0010-pdf-from-page-images.md) | A PDF made of page images for printers without raster formats | accepted |

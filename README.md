@@ -12,9 +12,9 @@ Open source · No ads · No account · No telemetry
 
 </div>
 
-> **Pre-alpha, built in public.** Printing over Wi-Fi works end to end in the app against a *fake* printer
-> (a real HTTP/IPP server used for development), but **nothing has been tried on a real printer yet**, and
-> USB printing is not built. Follow along in the [roadmap](docs/ROADMAP.md), and see
+> **Pre-alpha, built in public.** Printing over Wi-Fi and over a USB cable works end to end against
+> *simulated* printers (real HTTP/IPP and PJL servers and a USB stack simulator, used for development), but
+> **nothing has been tried on a real printer yet**. Follow along in the [roadmap](docs/ROADMAP.md), and see
 > [what works today](#what-works-today).
 
 <p align="center">
@@ -58,17 +58,20 @@ module, not touching the rest. Details in [docs/ARCHITECTURE.md](docs/ARCHITECTU
 |---|---|
 | ✅ IPP: binary codec, HTTP framing, client (`Get-Printer-Attributes`, `Print-Job`, `Validate-Job`, job status, cancel), typed capability view | tested, fuzzed |
 | ✅ PJL: job headers, queries, status and `INFO VARIABLES` parsing | tested |
+| ✅ PJL route (classic PDF/PostScript/PCL printers): probe, settings the printer lists, job and device status, attention (paper out), cancel; degrades honestly when a printer is silent or write-only | tested against a fake PJL printer |
+| ✅ USB stack: interface planning (IPP over USB, classic), IPP-over-USB connector with pooling and recovery, host rules (claim then alternate setting, one-packet reads, soft reset, Device ID), IPP-first with PJL fallback | tested against a USB simulator that is as unforgiving as the Android API |
+| ✅ PDF backend: a PDF made of page images, so page ranges, reverse, n-up, booklets, margins, manual duplex and photos work on printers that take PDF but no raster format | output checked with poppler and ghostscript |
 | ✅ IEEE 1284 Device ID parsing (USB printers) | tested |
 | ✅ PWG Raster writer and reader (the format driverless inkjets accept) | matches the spec's own samples byte for byte |
 | ✅ Layout planner: page ranges, reverse, odd/even, scaling, margins, orientation, pages per sheet, booklet | tested |
 | ✅ Print planner: from what a printer reports, decides per setting whether the printer or Platen does it (PDF pass-through vs raster, duplex, collation, ...) | tested |
 | ✅ Print engine and IPP route: plan, render, send, follow, cancel, report paper-out, manual duplex | tested end to end against a fake printer on a real socket |
 | ✅ Fake IPP printer for development without hardware | tested |
-| ✅ The Android app: add a printer by address, pick a PDF or image (or share/"open with" into Platen), live preview, settings built from what the printer reports, print, progress, cancel, manual duplex | works on an Android 15 emulator against the fake printer; **not yet on real hardware** |
+| ✅ The Android app: add a printer by address or from a USB cable, pick a PDF or image (or share/"open with" into Platen), live preview, settings built from what the printer reports, print, progress, cancel, manual duplex, a shareable diagnostics report | Wi-Fi flow works on an Android 15 emulator against the fake printer; **the USB flow cannot run on an emulator and is not yet on real hardware** |
 | ✅ Rendering with Android's own `PdfRenderer` in bounded-memory bands, including sideways pages and several pages per sheet | 25 instrumented tests on an emulator |
 | ✅ Finding printers automatically with mDNS (`NsdManager`), shown in the Add dialog | interpretation of DNS-SD records is unit-tested; **discovery itself is unverified**: the emulator has no printers to find |
 | 🚧 The first test on a real printer | needs hardware |
-| 📋 USB printing, saved presets, Android print service, translations | see [roadmap](docs/ROADMAP.md) |
+| 📋 Saved presets, Android print service, translations | see [roadmap](docs/ROADMAP.md) |
 
 ## First validation printers
 
@@ -78,7 +81,7 @@ cover most of the design:
 * **HP DeskJet 3700 series**, over Wi-Fi: a low-end inkjet that accepts *no PDF* and only driverless
   raster formats. Proves the raster pipeline. [Notes](docs/printers/hp-deskjet-3700.md)
 * **HP LaserJet Managed MFP E42540**, over USB: a laser that takes PDF, PostScript and PCL natively.
-  Proves the USB path. [Notes](docs/printers/hp-laserjet-managed-mfp-e42540.md)
+  Proves the USB path (IPP over USB first, PJL as the fallback). [Notes](docs/printers/hp-laserjet-managed-mfp-e42540.md)
 
 Nothing has been tested on real hardware yet. Both notes list what is verified, what is inferred and
 what is still unknown. **If you have a printer, a [compatibility report](https://github.com/zsozso01/platen/issues/new?template=printer_report.yml)
