@@ -55,6 +55,14 @@ From the Android emulator the host machine is `10.0.2.2`, so in the app choose *
 (`testing/fake-printer/fake-printer-job-N.pwg`, git-ignored) so you can inspect exactly what a printer would
 receive. A PWG Raster file can be checked with any independent decoder.
 
+### USB without a printer
+
+An emulator has no USB host, so the USB stack is tested in plain JVM tests: `testing:usb` simulates a USB
+host (claim, alternate settings, packet-sized reads, timeouts, unplugging) in front of the fake IPP and PJL
+printers, and `route:usb` / `transport:usb` tests print through it. Run them with `./gradlew :route:usb:test
+:transport:usb:test :route:pjl:test`. Only the thin Android adapter (`platform:usb`) needs a real device with an
+OTG cable; see [the E42540 notes](printers/hp-laserjet-managed-mfp-e42540.md) for the first-test checklist.
+
 ## Layout
 
 See [ARCHITECTURE.md](ARCHITECTURE.md) for the module map and the dependency rules. In short:
