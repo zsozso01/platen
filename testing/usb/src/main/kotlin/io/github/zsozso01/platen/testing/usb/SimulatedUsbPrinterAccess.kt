@@ -54,11 +54,12 @@ class SimulatedUsbPrinterAccess(
     }
 
     companion object {
-        private val bulkOut = UsbEndpointInfo(0x01, isIn = false, isBulk = true, maxPacketSize = 512)
-        private val bulkIn = UsbEndpointInfo(0x81, isIn = true, isBulk = true, maxPacketSize = 512)
-
-        private fun printerIf(number: Int, alt: Int, protocol: Int) =
-            UsbInterfaceInfo(0, number, alt, 7, 1, protocol, if (protocol == 1) listOf(bulkOut) else listOf(bulkOut, bulkIn))
+        /** Each interface has its own endpoint addresses, as on real devices: 0x01/0x81 for interface 0, 0x02/0x82 for 1, ... */
+        private fun printerIf(number: Int, alt: Int, protocol: Int): UsbInterfaceInfo {
+            val out = UsbEndpointInfo(0x01 + number, isIn = false, isBulk = true, maxPacketSize = 512)
+            val input = UsbEndpointInfo(0x81 + number, isIn = true, isBulk = true, maxPacketSize = 512)
+            return UsbInterfaceInfo(0, number, alt, 7, 1, protocol, if (protocol == 1) listOf(out) else listOf(out, input))
+        }
 
         /**
          * Descriptors laid out the way the IPP-USB specification gives its own example: interface 0 offers the
