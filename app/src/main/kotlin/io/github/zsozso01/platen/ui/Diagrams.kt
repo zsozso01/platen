@@ -10,6 +10,10 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.unit.dp
+import io.github.zsozso01.platen.R
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.State
@@ -170,19 +174,54 @@ fun PagesPerSheetArt(count: Int, modifier: Modifier = Modifier) {
     }
 }
 
-/** Manual two-sided printing: the printed stack is turned over, and a sheet shows the way. */
+/**
+ * A pile of three sheets with a page number on the top one. With [flip] set, the pile turns over about its
+ * horizontal axis (squashed to a line halfway, then back with the other face up), which is the movement the
+ * user makes when they flip the printed stack.
+ */
 @Composable
-fun FlipStackArt(modifier: Modifier = Modifier) {
-    val phase by loop(2200)
-    Art(modifier, "Turn the whole printed stack over and put it back in the tray") { ink ->
-        repeat(4) { i -> sheet(ink, 14f, 62f - i * 8f, 46f, 8f) }
-        repeat(4) { i -> sheet(ink, 90f, 78f + i * 8f, 46f, 8f) }
-        val a = Offset(40f, 40f); val b = Offset(64f, 4f); val c = Offset(126f, 16f); val d = Offset(116f, 66f)
-        val p = Path().apply { moveTo(a.x, a.y); cubicTo(b.x, b.y, c.x, c.y, d.x, d.y) }
-        arrowPath(p, ink.cool, listOf(Offset(110f, 59f), Offset(116f, 67f), Offset(123f, 60f)), 0.8f)
-        val at = bezier(a, b, c, d, FastOutSlowInEasing.transform(phase))
-        val squash = 1f - 0.8f * sin(Math.PI.toFloat() * phase)
-        drawRoundRect(ink.warm.copy(alpha = 0.9f), Offset(at.x - 11f, at.y - 3f * squash), Size(22f, 6f * squash + 1f), CornerRadius(2f))
+fun PileArt(pageLabel: String, flip: Boolean, modifier: Modifier = Modifier, backFace: Boolean = false) {
+    val measurer = rememberTextMeasurer()
+    val phase by loop(2600)
+    Art(modifier, "A pile of printed sheets") { ink ->
+        // 0..1 holds, 1..2 turns (as a fraction of the loop), so the pile rests between turns.
+        val t = if (flip) ((phase - 0.25f) / 0.5f).coerceIn(0f, 1f) else 0f
+        val angle = Math.PI.toFloat() * FastOutSlowInEasing.transform(t)
+        val k = kotlin.math.cos(angle)
+        val showBack = backFace || (flip && k < 0f)
+        val colour = if (showBack) ink.warm else ink.cool
+        val cy = 62f
+        val ky = if (flip) k.coerceIn(-1f, 1f) else 1f
+        repeat(3) { i ->
+            val y = cy - 30f * ky + i * 7f * ky
+            val h = 60f * ky
+            val x = 30f + i * 6f
+            val rectTop = minOf(y, y + h)
+            val rectH = kotlin.math.abs(h).coerceAtLeast(1.5f)
+            val isTop = i == 2
+            drawRoundRect(if (isTop) colour.copy(alpha = 0.18f) else ink.paper, Offset(x, rectTop), Size(66f, rectH), CornerRadius(3f))
+            drawRoundRect(if (isTop) colour else ink.line, Offset(x, rectTop), Size(66f, rectH), CornerRadius(3f), style = Stroke(1.2f))
+            if (isTop && kotlin.math.abs(ky) > 0.5f) {
+                label(measurer, pageLabel, Offset(x + 33f - 7f, rectTop + rectH / 2f - 11f), colour, 22f)
+            }
+        }
+    }
+}
+
+/** The three steps of manual two-sided printing, as pictures with a caption each. */
+@Composable
+fun FlipSteps(modifier: Modifier = Modifier) {
+    androidx.compose.foundation.layout.Row(modifier.fillMaxWidth(), horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)) {
+        listOf(
+            Triple("1", false, stringResource(R.string.flip_step1)),
+            Triple("", true, stringResource(R.string.flip_step2)),
+            Triple("2", false, stringResource(R.string.flip_step3)),
+        ).forEachIndexed { i, (label, flip, caption) ->
+            androidx.compose.foundation.layout.Column(Modifier.weight(1f), horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally) {
+                PileArt(label.ifEmpty { "" }, flip, Modifier.fillMaxWidth(), backFace = i == 2)
+                androidx.compose.material3.Text(caption, style = MaterialTheme.typography.labelMedium, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+            }
+        }
     }
 }
 

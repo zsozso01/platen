@@ -93,8 +93,12 @@
     <string name="pages_invalid">Use page numbers like 1-3, 5, 8-</string>
     <string name="pages_odd">Odd</string>
     <string name="pages_even">Even</string>
-    <string name="sides_backs_reversed">Back sides last-to-first</string>
-    <string name="sides_backs_reversed_hint">Only for printers that cannot do both sides themselves. Off: flip the whole stack over and put it back. On: put the printed pages back in the tray exactly as they came out, without flipping.</string>
+    <string name="sides_backs_reversed">Print backs in reverse order</string>
+    <string name="sides_backs_reversed_hint">Normally leave this off. If the backs come out in the wrong order (page 1 has the last page on its back), turn it on and print again.</string>
+    <string name="flip_intro">This printer cannot print on both sides by itself, so Platen does it in two passes: first the front of every sheet, then, after you put the paper back, the backs.</string>
+    <string name="flip_step1">1. The fronts print. Sheet 1 has page 1.</string>
+    <string name="flip_step2">2. Take the whole pile out and flip it over, keeping the order.</string>
+    <string name="flip_step3">3. Put it back and continue. Sheet 1 now gets page 2 on its back.</string>
     <string name="pages_reverse">Reverse order</string>
     <string name="setting_scaling">Scaling</string>
     <string name="scaling_shrink">Shrink to fit</string>
@@ -167,7 +171,7 @@
     <string name="job_detached">The job was sent, but the printer stopped answering, so Platen cannot say how it ended. It may still print. Check the printer.</string>
     <string name="job_failed_title">Could not print</string>
     <string name="job_reload_title">Put the paper back in</string>
-    <string name="job_reload_body">The front sides are printed. Take the printed pages, turn them over and put them back into the paper tray, then continue.</string>
+    <string name="job_reload_body">The fronts are printed. Take the whole pile out of the output tray, flip it over as one pile without changing the order, put it back into the paper tray, then continue.</string>
     <string name="job_reload_continue">Paper is back, print the other sides</string>
     <string name="job_attention_title">The printer needs attention</string>
     <string name="job_cancel">Cancel printing</string>
