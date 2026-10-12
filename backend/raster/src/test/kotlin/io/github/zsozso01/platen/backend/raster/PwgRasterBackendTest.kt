@@ -158,16 +158,16 @@ class PwgRasterBackendTest {
     // --- manual duplex --------------------------------------------------------------------------
 
     @Test
-    fun `manual duplex prints fronts, then backs last to first`() {
+    fun `manual duplex prints fronts, then backs in stack order, or last to first on request`() {
         val (plan, doc) = plan(4, PrintSettings(sides = Sides.TWO_SIDED_LONG_EDGE, color = io.github.zsozso01.platen.core.model.ColorMode.MONOCHROME))
         val (frontsPass, backsPass) = plan.passes
         val fronts = write(plan, doc, frontsPass)
         val backs = write(plan, doc, backsPass)
         assertEquals(listOf(1, 3).map(SolidBlockRasterizer::shade), fronts.map { it.gray(200, 300) })
-        assertEquals(listOf(4, 2).map(SolidBlockRasterizer::shade), backs.map { it.gray(200, 300) })
+        assertEquals(listOf(2, 4).map(SolidBlockRasterizer::shade), backs.map { it.gray(200, 300) })
         assertEquals(false, fronts[0].header.duplex, "each manual pass is one-sided")
-        val inOrder = write(plan, doc, backsPass, ManualDuplexOptions(reverseBackOrder = false))
-        assertEquals(listOf(2, 4).map(SolidBlockRasterizer::shade), inOrder.map { it.gray(200, 300) })
+        val reversed = write(plan, doc, backsPass, ManualDuplexOptions(reverseBackOrder = true))
+        assertEquals(listOf(4, 2).map(SolidBlockRasterizer::shade), reversed.map { it.gray(200, 300) })
     }
 
     @Test

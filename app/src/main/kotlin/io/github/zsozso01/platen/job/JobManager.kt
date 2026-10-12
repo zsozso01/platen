@@ -5,6 +5,7 @@ import androidx.core.content.ContextCompat
 import io.github.zsozso01.platen.backend.pdf.PdfRasterBackend
 import io.github.zsozso01.platen.backend.raster.PwgRasterBackend
 import io.github.zsozso01.platen.core.engine.PrintEngine
+import io.github.zsozso01.platen.core.engine.ManualDuplexOptions
 import io.github.zsozso01.platen.core.engine.PrintRequest
 import io.github.zsozso01.platen.core.model.DocumentFormat
 import io.github.zsozso01.platen.core.model.JobEvent
@@ -94,6 +95,7 @@ class JobManager(
                     document = held.asSource(),
                     settings = settings,
                     capabilities = capabilities,
+                    manualDuplex = ManualDuplexOptions(reverseBackOrder = settings.manualBacksLastToFirst),
                     jobName = document.name,
                     awaitReload = {
                         val answer = CompletableDeferred<Boolean>()

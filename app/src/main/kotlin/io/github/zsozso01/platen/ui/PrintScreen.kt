@@ -199,6 +199,9 @@ private fun Settings(state: PrintUiState, session: PrintSession, caps: PrinterCa
             listOf(Sides.ONE_SIDED to stringResource(R.string.sides_one), Sides.TWO_SIDED_LONG_EDGE to stringResource(R.string.sides_long), Sides.TWO_SIDED_SHORT_EDGE to stringResource(R.string.sides_short)),
             s.sides,
         ) { v -> session.update { it.copy(sides = v) } }
+        if (s.sides != Sides.ONE_SIDED) {
+            SwitchRow(stringResource(R.string.sides_backs_reversed), s.manualBacksLastToFirst, { r -> session.update { it.copy(manualBacksLastToFirst = r) } })
+        }
 
         SectionTitle(stringResource(R.string.setting_pages))
         OutlinedTextField(

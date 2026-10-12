@@ -143,6 +143,11 @@ public data class PrintSettings(
     val tray: MediaSource? = null,
     val scaling: Scaling = Scaling.ShrinkToFit,
     val sides: Sides = Sides.ONE_SIDED,
+    /**
+     * Manual duplex only: print the back sides last-to-first. Right when the front sides are put back as they
+     * came out of a face-down tray; leave off when the whole stack is flipped over before it goes back in.
+     */
+    val manualBacksLastToFirst: Boolean = false,
     val color: ColorMode = ColorMode.AUTO,
     val quality: Quality = Quality.NORMAL,
     /** Square resolution in dpi, or null to let quality decide. */

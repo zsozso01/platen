@@ -6,8 +6,8 @@ import io.github.zsozso01.platen.core.model.Sides
 
 /** How the user loads paper for the second pass of a manual duplex job. Needs a real printer to settle. */
 public data class ManualDuplexOptions(
-    /** Print the back faces last-to-first. Right for most output trays that stack pages face down. */
-    val reverseBackOrder: Boolean = true,
+    /** Print the back faces last-to-first. Right when the front sides go back as they came out of a face-down tray; off when the whole stack is flipped over. */
+    val reverseBackOrder: Boolean = false,
     /** Turn the back faces half a turn, on top of what the binding already requires. */
     val rotateBacks: Boolean = false,
 )

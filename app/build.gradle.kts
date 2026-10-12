@@ -9,8 +9,8 @@ android {
 
     defaultConfig {
         applicationId = "io.github.zsozso01.platen"
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = 2
+        versionName = "0.1.1"
     }
 
     buildTypes {
