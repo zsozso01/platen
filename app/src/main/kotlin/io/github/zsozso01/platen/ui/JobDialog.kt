@@ -1,14 +1,19 @@
 package io.github.zsozso01.platen.ui
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -28,72 +33,76 @@ fun jobStatusText(job: JobUiState): String = when (val e = job.latest) {
     else -> stringResource(R.string.job_starting)
 }
 
+/**
+ * The running job as a card over the bottom of the screen. It never blocks: the user can keep browsing,
+ * change settings or open another document while it works. Paper reload, failure and the final result live
+ * on the same card instead of in modal dialogs.
+ */
 @Composable
-fun JobDialog(job: JobUiState, onCancel: () -> Unit, onReloaded: () -> Unit, onHide: () -> Unit, onDone: () -> Unit, onShareDiagnostics: () -> Unit) {
+fun JobCard(job: JobUiState, onCancel: () -> Unit, onReloaded: () -> Unit, onDone: () -> Unit, onShareDiagnostics: () -> Unit, modifier: Modifier = Modifier) {
     val finished = job.finished
-    when {
-        job.waitingForReload -> AlertDialog(
-            onDismissRequest = {},
-            title = { Text(stringResource(R.string.job_reload_title)) },
-            text = { Text(stringResource(R.string.job_reload_body)) },
-            confirmButton = { TextButton(onClick = onReloaded) { Text(stringResource(R.string.job_reload_continue)) } },
-            dismissButton = { TextButton(onClick = onCancel) { Text(stringResource(R.string.job_cancel)) } },
-        )
-        finished != null -> AlertDialog(
-            onDismissRequest = onDone,
-            title = {
-                Text(
-                    when (finished) {
-                        JobEvent.Completed -> stringResource(R.string.job_done_title)
-                        is JobEvent.Failed -> stringResource(R.string.job_failed_title)
-                        else -> job.documentName
-                    },
-                )
-            },
-            text = {
-                Text(
-                    when (finished) {
-                        JobEvent.Completed -> stringResource(R.string.job_done_body)
-                        JobEvent.Canceled -> stringResource(R.string.job_canceled)
-                        is JobEvent.Detached -> stringResource(R.string.job_detached) + "\n\n" + finished.reason
-                        is JobEvent.Failed -> failureText(finished.failure)
-                        else -> ""
-                    },
-                )
-            },
-            confirmButton = { TextButton(onClick = onDone) { Text(stringResource(R.string.done)) } },
-            dismissButton = if (finished is JobEvent.Failed || finished is JobEvent.Detached) {
-                { TextButton(onClick = onShareDiagnostics) { Text(stringResource(R.string.diagnostics_share)) } }
-            } else {
-                null
-            },
-        )
-        else -> AlertDialog(
-            onDismissRequest = onHide,
-            title = { Text(job.documentName, maxLines = 1) },
-            text = {
-                Column(Modifier.fillMaxWidth()) {
-                    val latest = job.latest
-                    val attention = latest as? JobEvent.Attention
+    val latest = job.latest
+    val phase = when {
+        finished == JobEvent.Completed -> JobPhase.DONE
+        finished != null && finished != JobEvent.Canceled -> JobPhase.FAILED
+        job.waitingForReload || latest is JobEvent.Attention -> JobPhase.WAITING
+        latest is JobEvent.Printing || latest is JobEvent.Accepted -> JobPhase.PRINTING
+        else -> JobPhase.WORKING
+    }
+    ElevatedCard(modifier.fillMaxWidth().padding(horizontal = 12.dp)) {
+        Column(Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                PrinterArt(phase, Modifier.width(76.dp))
+                Column(Modifier.weight(1f).padding(start = 12.dp)) {
+                    Text(job.documentName, style = MaterialTheme.typography.titleSmall, maxLines = 1)
                     Text(
-                        jobStatusText(job),
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = if (attention != null) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurface,
+                        when {
+                            job.waitingForReload -> stringResource(R.string.job_reload_title)
+                            finished == JobEvent.Completed -> stringResource(R.string.job_done_title)
+                            finished == JobEvent.Canceled -> stringResource(R.string.job_canceled)
+                            finished is JobEvent.Failed -> stringResource(R.string.job_failed_title)
+                            finished is JobEvent.Detached -> stringResource(R.string.job_detached_title)
+                            else -> jobStatusText(job)
+                        },
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = if (phase == JobPhase.FAILED || latest is JobEvent.Attention) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                    val progress = when (latest) {
-                        is JobEvent.Sending -> latest.totalBytes?.takeIf { it > 0 }?.let { latest.bytesSent.toFloat() / it }
-                        is JobEvent.Preparing -> if (latest.totalPages > 0) (latest.page - 1f) / latest.totalPages else null
-                        else -> null
-                    }
-                    if (progress != null) {
-                        LinearProgressIndicator(progress = { progress.coerceIn(0f, 1f) }, modifier = Modifier.fillMaxWidth().padding(top = 16.dp))
-                    } else {
-                        LinearProgressIndicator(modifier = Modifier.fillMaxWidth().padding(top = 16.dp))
+                    if (finished == null && !job.waitingForReload) {
+                        val progress = when (latest) {
+                            is JobEvent.Sending -> latest.totalBytes?.takeIf { it > 0 }?.let { latest.bytesSent.toFloat() / it }
+                            is JobEvent.Preparing -> if (latest.totalPages > 0) (latest.page - 1f) / latest.totalPages else null
+                            else -> null
+                        }
+                        val modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+                        if (progress != null) LinearProgressIndicator(progress = { progress.coerceIn(0f, 1f) }, modifier = modifier) else LinearProgressIndicator(modifier = modifier)
                     }
                 }
-            },
-            confirmButton = { TextButton(onClick = onHide) { Text(stringResource(R.string.job_hide)) } },
-            dismissButton = { TextButton(onClick = onCancel) { Text(stringResource(R.string.job_cancel)) } },
-        )
+            }
+            when {
+                job.waitingForReload -> {
+                    Text(stringResource(R.string.job_reload_body), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 8.dp))
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                        TextButton(onClick = onCancel) { Text(stringResource(R.string.job_cancel)) }
+                        Button(onClick = onReloaded) { Text(stringResource(R.string.job_reload_continue)) }
+                    }
+                }
+                finished != null -> {
+                    val detail = when (finished) {
+                        is JobEvent.Detached -> stringResource(R.string.job_detached) + "\n\n" + finished.reason
+                        is JobEvent.Failed -> failureText(finished.failure)
+                        JobEvent.Completed -> stringResource(R.string.job_done_body)
+                        else -> null
+                    }
+                    if (detail != null) Text(detail, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 8.dp))
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                        if (finished is JobEvent.Failed || finished is JobEvent.Detached) TextButton(onClick = onShareDiagnostics) { Text(stringResource(R.string.diagnostics_share)) }
+                        TextButton(onClick = onDone) { Text(stringResource(R.string.done)) }
+                    }
+                }
+                else -> Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
+                    TextButton(onClick = onCancel) { Text(stringResource(R.string.job_cancel)) }
+                }
+            }
+        }
     }
 }

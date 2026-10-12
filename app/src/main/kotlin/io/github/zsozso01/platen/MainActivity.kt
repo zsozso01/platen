@@ -1,5 +1,17 @@
 package io.github.zsozso01.platen
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInVertically
+import androidx.compose.animation.slideOutVertically
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.padding
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import android.Manifest
 import android.content.Intent
 import android.content.pm.PackageManager
@@ -32,10 +44,9 @@ import io.github.zsozso01.platen.ui.AddPrinterDialog
 import io.github.zsozso01.platen.ui.AppViewModel
 import io.github.zsozso01.platen.ui.HomeScreen
 import io.github.zsozso01.platen.ui.JobBanner
-import io.github.zsozso01.platen.ui.JobDialog
+import io.github.zsozso01.platen.ui.JobCard
 import io.github.zsozso01.platen.ui.OpenResult
 import io.github.zsozso01.platen.ui.PrintScreen
-import io.github.zsozso01.platen.ui.jobStatusText
 import io.github.zsozso01.platen.ui.theme.PlatenTheme
 
 class MainActivity : ComponentActivity() {
@@ -99,7 +110,6 @@ private fun PlatenApp(vm: AppViewModel, needsPrinterFirst: Boolean, onNeedsPrint
     }
 
     var showAdd by rememberSaveable { mutableStateOf(false) }
-    var jobHidden by rememberSaveable { mutableStateOf(false) }
     var pendingPrint by remember { mutableStateOf(false) }
 
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri -> if (uri != null) onOpen(uri) }
@@ -107,7 +117,7 @@ private fun PlatenApp(vm: AppViewModel, needsPrinterFirst: Boolean, onNeedsPrint
         // Print whether or not the user allowed notifications: they only show progress.
         if (pendingPrint) {
             pendingPrint = false
-            if (vm.session.value?.print() == true) jobHidden = false
+            vm.session.value?.print()
         }
     }
 
@@ -129,8 +139,8 @@ private fun PlatenApp(vm: AppViewModel, needsPrinterFirst: Boolean, onNeedsPrint
                 if (Build.VERSION.SDK_INT >= 33 && ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
                     pendingPrint = true
                     notifications.launch(Manifest.permission.POST_NOTIFICATIONS)
-                } else if (currentSession.print()) {
-                    jobHidden = false
+                } else {
+                    currentSession.print()
                 }
             },
         )
@@ -145,8 +155,8 @@ private fun PlatenApp(vm: AppViewModel, needsPrinterFirst: Boolean, onNeedsPrint
             onAllowUsb = vm::allowUsb,
             onPickDocument = { picker.launch(arrayOf("application/pdf", "image/*")) },
             onShareDiagnostics = shareDiagnostics,
-            runningJob = job?.takeIf { jobHidden || it.finished != null }?.let { JobBanner(it.documentName, if (it.finished != null) stringResource(R.string.job_done_title) else jobStatusText(it)) },
-            onOpenJob = { jobHidden = false },
+            runningJob = null,
+            onOpenJob = {},
         )
     }
 
@@ -156,16 +166,20 @@ private fun PlatenApp(vm: AppViewModel, needsPrinterFirst: Boolean, onNeedsPrint
     }
     if (showAdd) AddPrinterDialog(discovered = discovered, usbPrinters = usbPrinters, onDismiss = { showAdd = false }, add = { vm.addPrinter(it) }, addUsb = { vm.addUsbPrinter(it) })
 
-    job?.let { current ->
-        if (!jobHidden || current.finished != null || current.waitingForReload) {
-            JobDialog(
-                job = current,
-                onCancel = { vm.cancelJob() },
-                onReloaded = { vm.confirmReloaded() },
-                onHide = { jobHidden = true },
-                onDone = { vm.dismissJob(); jobHidden = false },
-                onShareDiagnostics = shareDiagnostics,
-            )
+    Box(Modifier.fillMaxSize().navigationBarsPadding().padding(bottom = if (currentSession != null) 76.dp else 12.dp), contentAlignment = Alignment.BottomCenter) {
+        AnimatedVisibility(visible = job != null, enter = slideInVertically { it } + fadeIn(), exit = slideOutVertically { it } + fadeOut()) {
+            // Keep the last job around while the card slides away.
+            val shown = remember { mutableStateOf(job) }
+            if (job != null) shown.value = job
+            shown.value?.let { current ->
+                JobCard(
+                    job = current,
+                    onCancel = { vm.cancelJob() },
+                    onReloaded = { vm.confirmReloaded() },
+                    onDone = { vm.dismissJob() },
+                    onShareDiagnostics = shareDiagnostics,
+                )
+            }
         }
     }
 

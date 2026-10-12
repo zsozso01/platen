@@ -185,7 +185,10 @@ private fun Settings(state: PrintUiState, session: PrintSession, caps: PrinterCa
     Column(Modifier.fillMaxWidth()) {
         SettingsCard(stringResource(R.string.section_basic), stringResource(R.string.section_basic_hint)) {
             Stepper(stringResource(R.string.setting_copies), s.copies, 1..99) { n -> session.update { it.copy(copies = n) } }
-            if (s.copies > 1) SwitchRow(stringResource(R.string.setting_collate), s.collate, { c -> session.update { it.copy(collate = c) } }, supporting = stringResource(R.string.setting_collate_hint))
+            if (s.copies > 1) {
+                SwitchRow(stringResource(R.string.setting_collate), s.collate, { c -> session.update { it.copy(collate = c) } }, supporting = stringResource(R.string.setting_collate_hint))
+                CollateArt(s.collate, Modifier.height(88.dp).align(Alignment.CenterHorizontally))
+            }
 
             val colorOptions = buildList {
                 add(ColorMode.AUTO to stringResource(R.string.color_auto))
@@ -196,6 +199,7 @@ private fun Settings(state: PrintUiState, session: PrintSession, caps: PrinterCa
         }
 
         SettingsCard(stringResource(R.string.section_sides), stringResource(R.string.section_sides_hint)) {
+            if (s.sides != Sides.ONE_SIDED) SidesArt(s.sides == Sides.TWO_SIDED_LONG_EDGE, Modifier.height(104.dp).align(Alignment.CenterHorizontally))
             DropdownSetting(
                 stringResource(R.string.setting_sides),
                 listOf(Sides.ONE_SIDED to stringResource(R.string.sides_one), Sides.TWO_SIDED_LONG_EDGE to stringResource(R.string.sides_long), Sides.TWO_SIDED_SHORT_EDGE to stringResource(R.string.sides_short)),
@@ -215,6 +219,7 @@ private fun Settings(state: PrintUiState, session: PrintSession, caps: PrinterCa
                     { r -> session.update { it.copy(manualBacksLastToFirst = r) } },
                     supporting = stringResource(R.string.sides_backs_reversed_hint),
                 )
+                if (!s.manualBacksLastToFirst) FlipStackArt(Modifier.height(96.dp).align(Alignment.CenterHorizontally))
             }
         }
 
@@ -257,6 +262,7 @@ private fun Settings(state: PrintUiState, session: PrintSession, caps: PrinterCa
                 enabled = !s.booklet,
                 hint = stringResource(R.string.pages_per_sheet_hint),
             ) { n -> session.update { it.copy(pagesPerSheet = it.pagesPerSheet.copy(count = n)) } }
+            if (s.pagesPerSheet.count > 1 && !s.booklet) PagesPerSheetArt(s.pagesPerSheet.count, Modifier.height(100.dp).align(Alignment.CenterHorizontally))
             if (s.pagesPerSheet.count > 1 && !s.booklet) SwitchRow(stringResource(R.string.pages_per_sheet_border), s.pagesPerSheet.border, { b -> session.update { it.copy(pagesPerSheet = it.pagesPerSheet.copy(border = b)) } })
             if (state.pageCount > 1) SwitchRow(stringResource(R.string.setting_booklet), s.booklet, { b -> session.update { it.copy(booklet = b) } }, supporting = stringResource(R.string.setting_booklet_hint))
             MarginsControl(s.margins, state.customMarginMm, session)

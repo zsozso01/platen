@@ -171,6 +171,7 @@
     <string name="job_reload_continue">Paper is back, print the other sides</string>
     <string name="job_attention_title">The printer needs attention</string>
     <string name="job_cancel">Cancel printing</string>
+    <string name="job_detached_title">The printer stopped answering</string>
     <string name="job_hide">Hide</string>
 
     <!-- Failures -->
