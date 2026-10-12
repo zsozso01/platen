@@ -4,11 +4,14 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilterChip
@@ -35,6 +38,7 @@ fun <T> DropdownSetting(
     selected: T,
     modifier: Modifier = Modifier,
     enabled: Boolean = true,
+    hint: String? = null,
     onSelect: (T) -> Unit,
 ) {
     var expanded by remember { mutableStateOf(false) }
@@ -49,6 +53,7 @@ fun <T> DropdownSetting(
             trailingIcon = { Icon(Icons.Default.ArrowDropDown, contentDescription = null) },
             modifier = Modifier.fillMaxWidth(),
             singleLine = true,
+            supportingText = hint?.let { h -> { Text(h) } },
         )
         // An invisible layer on top catches the tap: a read-only text field swallows clicks itself.
         Box(Modifier.matchParentSize().clickable(enabled = enabled) { expanded = true })
@@ -62,7 +67,7 @@ fun <T> DropdownSetting(
 
 /** A row of mutually exclusive chips. */
 @Composable
-fun <T> ChipChoice(label: String, options: List<Pair<T, String>>, selected: T, onSelect: (T) -> Unit) {
+fun <T> ChipChoice(label: String, options: List<Pair<T, String>>, selected: T, hint: String? = null, onSelect: (T) -> Unit) {
     Column {
         Text(label, style = MaterialTheme.typography.labelLarge, modifier = Modifier.padding(bottom = 4.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -70,6 +75,7 @@ fun <T> ChipChoice(label: String, options: List<Pair<T, String>>, selected: T, o
                 FilterChip(selected = value == selected, onClick = { onSelect(value) }, label = { Text(text) })
             }
         }
+        if (hint != null) Text(hint, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(top = 4.dp))
     }
 }
 
@@ -91,6 +97,23 @@ fun Stepper(label: String, value: Int, range: IntRange, onChange: (Int) -> Unit)
         OutlinedButton(onClick = { onChange((value - 1).coerceIn(range)) }, enabled = value > range.first) { Text("−") }
         Text(value.toString(), style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(horizontal = 16.dp))
         OutlinedButton(onClick = { onChange((value + 1).coerceIn(range)) }, enabled = value < range.last) { Text("+") }
+    }
+}
+
+/** One group of related settings on a soft card, with a title and a line saying what the group is for. */
+@Composable
+fun SettingsCard(title: String, subtitle: String? = null, content: @Composable ColumnScope.() -> Unit) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow),
+        modifier = Modifier.fillMaxWidth().padding(top = 16.dp),
+    ) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+            Column {
+                Text(title, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.primary)
+                if (subtitle != null) Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+            content()
+        }
     }
 }
 

@@ -182,84 +182,104 @@ private fun PrinterSection(state: PrintUiState, session: PrintSession) {
 @Composable
 private fun Settings(state: PrintUiState, session: PrintSession, caps: PrinterCapabilities) {
     val s = state.settings
-    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-        SectionTitle(stringResource(R.string.section_basic))
-        Stepper(stringResource(R.string.setting_copies), s.copies, 1..99) { n -> session.update { it.copy(copies = n) } }
-        if (s.copies > 1) SwitchRow(stringResource(R.string.setting_collate), s.collate, { c -> session.update { it.copy(collate = c) } })
+    Column(Modifier.fillMaxWidth()) {
+        SettingsCard(stringResource(R.string.section_basic), stringResource(R.string.section_basic_hint)) {
+            Stepper(stringResource(R.string.setting_copies), s.copies, 1..99) { n -> session.update { it.copy(copies = n) } }
+            if (s.copies > 1) SwitchRow(stringResource(R.string.setting_collate), s.collate, { c -> session.update { it.copy(collate = c) } }, supporting = stringResource(R.string.setting_collate_hint))
 
-        val colorOptions = buildList {
-            add(ColorMode.AUTO to stringResource(R.string.color_auto))
-            if (ColorMode.COLOR in caps.colorModes || caps.colorModes.size <= 1) add(ColorMode.COLOR to stringResource(R.string.color_color))
-            add(ColorMode.MONOCHROME to stringResource(R.string.color_mono))
-        }
-        ChipChoice(stringResource(R.string.setting_color), colorOptions, s.color) { c -> session.update { it.copy(color = c) } }
-
-        DropdownSetting(
-            stringResource(R.string.setting_sides),
-            listOf(Sides.ONE_SIDED to stringResource(R.string.sides_one), Sides.TWO_SIDED_LONG_EDGE to stringResource(R.string.sides_long), Sides.TWO_SIDED_SHORT_EDGE to stringResource(R.string.sides_short)),
-            s.sides,
-        ) { v -> session.update { it.copy(sides = v) } }
-        if (s.sides != Sides.ONE_SIDED) {
-            SwitchRow(stringResource(R.string.sides_backs_reversed), s.manualBacksLastToFirst, { r -> session.update { it.copy(manualBacksLastToFirst = r) } })
+            val colorOptions = buildList {
+                add(ColorMode.AUTO to stringResource(R.string.color_auto))
+                if (ColorMode.COLOR in caps.colorModes || caps.colorModes.size <= 1) add(ColorMode.COLOR to stringResource(R.string.color_color))
+                add(ColorMode.MONOCHROME to stringResource(R.string.color_mono))
+            }
+            ChipChoice(stringResource(R.string.setting_color), colorOptions, s.color, hint = stringResource(R.string.setting_color_hint)) { c -> session.update { it.copy(color = c) } }
         }
 
-        SectionTitle(stringResource(R.string.setting_pages))
-        OutlinedTextField(
-            value = state.pageRangeText,
-            onValueChange = session::setPageRange,
-            label = { Text(stringResource(R.string.pages_all)) },
-            placeholder = { Text(stringResource(R.string.pages_hint)) },
-            singleLine = true,
-            isError = state.pageRangeInvalid,
-            supportingText = if (state.pageRangeInvalid) ({ Text(stringResource(R.string.pages_invalid)) }) else null,
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
-            modifier = Modifier.fillMaxWidth(),
-        )
-        ChipChoice(
-            stringResource(R.string.setting_pages),
-            listOf(
-                PageSelection.Parity.ALL to stringResource(R.string.pages_all),
-                PageSelection.Parity.ODD_ONLY to stringResource(R.string.pages_odd),
-                PageSelection.Parity.EVEN_ONLY to stringResource(R.string.pages_even),
-            ),
-            s.pages.parity,
-        ) { p -> session.update { it.copy(pages = it.pages.copy(parity = p)) } }
-        SwitchRow(stringResource(R.string.pages_reverse), s.reverseOrder, { r -> session.update { it.copy(reverseOrder = r) } })
-
-        SectionTitle(stringResource(R.string.section_layout))
-        ScalingControl(s.scaling, onChange = { sc -> session.update { it.copy(scaling = sc) } })
-        DropdownSetting(
-            stringResource(R.string.setting_orientation),
-            listOf(Orientation.AUTO to stringResource(R.string.orientation_auto), Orientation.PORTRAIT to stringResource(R.string.orientation_portrait), Orientation.LANDSCAPE to stringResource(R.string.orientation_landscape)),
-            s.orientation,
-        ) { o -> session.update { it.copy(orientation = o) } }
-        DropdownSetting(
-            stringResource(R.string.setting_pages_per_sheet),
-            PagesPerSheet.SUPPORTED.sorted().map { it to stringResource(R.string.pages_per_sheet_n, it) },
-            s.pagesPerSheet.count,
-            enabled = !s.booklet,
-        ) { n -> session.update { it.copy(pagesPerSheet = it.pagesPerSheet.copy(count = n)) } }
-        if (s.pagesPerSheet.count > 1 && !s.booklet) SwitchRow(stringResource(R.string.pages_per_sheet_border), s.pagesPerSheet.border, { b -> session.update { it.copy(pagesPerSheet = it.pagesPerSheet.copy(border = b)) } })
-        if (state.pageCount > 1) SwitchRow(stringResource(R.string.setting_booklet), s.booklet, { b -> session.update { it.copy(booklet = b) } })
-        MarginsControl(s.margins, state.customMarginMm, session)
-
-        SectionTitle(stringResource(R.string.section_quality))
-        DropdownSetting(
-            stringResource(R.string.setting_quality),
-            listOf(Quality.DRAFT to stringResource(R.string.quality_draft), Quality.NORMAL to stringResource(R.string.quality_normal), Quality.HIGH to stringResource(R.string.quality_high)),
-            s.quality,
-        ) { q -> session.update { it.copy(quality = q) } }
-        SwitchRow(stringResource(R.string.setting_economy), s.economy, { e -> session.update { it.copy(economy = e) } })
-
-        val sizes = caps.mediaSizes
-        if (sizes.isNotEmpty()) {
-            val options: List<Pair<MediaSize?, String>> = sizes.map { it to paperLabel(it) }
-            val selected = s.paper?.let { chosen -> sizes.firstOrNull { it.samePaperAs(chosen) } } ?: caps.defaultMedia?.let { d -> sizes.firstOrNull { it.samePaperAs(d) } }
-            DropdownSetting(stringResource(R.string.setting_paper), options, selected) { m -> session.update { it.copy(paper = m) } }
+        SettingsCard(stringResource(R.string.section_sides), stringResource(R.string.section_sides_hint)) {
+            DropdownSetting(
+                stringResource(R.string.setting_sides),
+                listOf(Sides.ONE_SIDED to stringResource(R.string.sides_one), Sides.TWO_SIDED_LONG_EDGE to stringResource(R.string.sides_long), Sides.TWO_SIDED_SHORT_EDGE to stringResource(R.string.sides_short)),
+                s.sides,
+                hint = stringResource(
+                    when (s.sides) {
+                        Sides.ONE_SIDED -> R.string.sides_one_hint
+                        Sides.TWO_SIDED_LONG_EDGE -> R.string.sides_long_hint
+                        else -> R.string.sides_short_hint
+                    },
+                ),
+            ) { v -> session.update { it.copy(sides = v) } }
+            if (s.sides != Sides.ONE_SIDED) {
+                SwitchRow(
+                    stringResource(R.string.sides_backs_reversed),
+                    s.manualBacksLastToFirst,
+                    { r -> session.update { it.copy(manualBacksLastToFirst = r) } },
+                    supporting = stringResource(R.string.sides_backs_reversed_hint),
+                )
+            }
         }
-        if (caps.trays.size > 1) {
-            val options: List<Pair<MediaSource?, String>> = listOf<Pair<MediaSource?, String>>(null to stringResource(R.string.tray_auto)) + caps.trays.map { it to it.id }
-            DropdownSetting(stringResource(R.string.setting_tray), options, s.tray) { t -> session.update { it.copy(tray = t) } }
+
+        SettingsCard(stringResource(R.string.setting_pages), stringResource(R.string.section_pages_hint)) {
+            OutlinedTextField(
+                value = state.pageRangeText,
+                onValueChange = session::setPageRange,
+                label = { Text(stringResource(R.string.pages_all)) },
+                placeholder = { Text(stringResource(R.string.pages_hint)) },
+                singleLine = true,
+                isError = state.pageRangeInvalid,
+                supportingText = { Text(stringResource(if (state.pageRangeInvalid) R.string.pages_invalid else R.string.pages_range_hint)) },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text),
+                modifier = Modifier.fillMaxWidth(),
+            )
+            ChipChoice(
+                stringResource(R.string.pages_only),
+                listOf(
+                    PageSelection.Parity.ALL to stringResource(R.string.pages_all),
+                    PageSelection.Parity.ODD_ONLY to stringResource(R.string.pages_odd),
+                    PageSelection.Parity.EVEN_ONLY to stringResource(R.string.pages_even),
+                ),
+                s.pages.parity,
+                hint = stringResource(R.string.pages_only_hint),
+            ) { p -> session.update { it.copy(pages = it.pages.copy(parity = p)) } }
+            SwitchRow(stringResource(R.string.pages_reverse), s.reverseOrder, { r -> session.update { it.copy(reverseOrder = r) } }, supporting = stringResource(R.string.pages_reverse_hint))
+        }
+
+        SettingsCard(stringResource(R.string.section_layout), stringResource(R.string.section_layout_hint)) {
+            ScalingControl(s.scaling, onChange = { sc -> session.update { it.copy(scaling = sc) } })
+            DropdownSetting(
+                stringResource(R.string.setting_orientation),
+                listOf(Orientation.AUTO to stringResource(R.string.orientation_auto), Orientation.PORTRAIT to stringResource(R.string.orientation_portrait), Orientation.LANDSCAPE to stringResource(R.string.orientation_landscape)),
+                s.orientation,
+            ) { o -> session.update { it.copy(orientation = o) } }
+            DropdownSetting(
+                stringResource(R.string.setting_pages_per_sheet),
+                PagesPerSheet.SUPPORTED.sorted().map { it to stringResource(R.string.pages_per_sheet_n, it) },
+                s.pagesPerSheet.count,
+                enabled = !s.booklet,
+                hint = stringResource(R.string.pages_per_sheet_hint),
+            ) { n -> session.update { it.copy(pagesPerSheet = it.pagesPerSheet.copy(count = n)) } }
+            if (s.pagesPerSheet.count > 1 && !s.booklet) SwitchRow(stringResource(R.string.pages_per_sheet_border), s.pagesPerSheet.border, { b -> session.update { it.copy(pagesPerSheet = it.pagesPerSheet.copy(border = b)) } })
+            if (state.pageCount > 1) SwitchRow(stringResource(R.string.setting_booklet), s.booklet, { b -> session.update { it.copy(booklet = b) } }, supporting = stringResource(R.string.setting_booklet_hint))
+            MarginsControl(s.margins, state.customMarginMm, session)
+        }
+
+        SettingsCard(stringResource(R.string.section_quality), stringResource(R.string.section_quality_hint)) {
+            DropdownSetting(
+                stringResource(R.string.setting_quality),
+                listOf(Quality.DRAFT to stringResource(R.string.quality_draft), Quality.NORMAL to stringResource(R.string.quality_normal), Quality.HIGH to stringResource(R.string.quality_high)),
+                s.quality,
+            ) { q -> session.update { it.copy(quality = q) } }
+            SwitchRow(stringResource(R.string.setting_economy), s.economy, { e -> session.update { it.copy(economy = e) } }, supporting = stringResource(R.string.setting_economy_hint))
+
+            val sizes = caps.mediaSizes
+            if (sizes.isNotEmpty()) {
+                val options: List<Pair<MediaSize?, String>> = sizes.map { it to paperLabel(it) }
+                val selected = s.paper?.let { chosen -> sizes.firstOrNull { it.samePaperAs(chosen) } } ?: caps.defaultMedia?.let { d -> sizes.firstOrNull { it.samePaperAs(d) } }
+                DropdownSetting(stringResource(R.string.setting_paper), options, selected) { m -> session.update { it.copy(paper = m) } }
+            }
+            if (caps.trays.size > 1) {
+                val options: List<Pair<MediaSource?, String>> = listOf<Pair<MediaSource?, String>>(null to stringResource(R.string.tray_auto)) + caps.trays.map { it to it.id }
+                DropdownSetting(stringResource(R.string.setting_tray), options, s.tray) { t -> session.update { it.copy(tray = t) } }
+            }
         }
     }
 }
@@ -371,8 +391,7 @@ private fun Notes(state: PrintUiState, plan: PrintPlan?) {
         if (plan == null) return
         val notable = plan.decisions.filter { it.outcome != Decision.Outcome.BY_PRINTER || it.detail != null }
             .filter { it.outcome != Decision.Outcome.BY_APP || it.detail != null || it.setting == SettingKind.SIDES }
-        if (notable.isNotEmpty() || plan.needsReload) {
-            SectionTitle(stringResource(R.string.section_notes))
+        if (notable.isNotEmpty() || plan.needsReload) SettingsCard(stringResource(R.string.section_notes), stringResource(R.string.section_notes_hint)) {
             notable.forEach { d ->
                 val warning = d.outcome == Decision.Outcome.IGNORED || d.outcome == Decision.Outcome.APPROXIMATED
                 Row(verticalAlignment = Alignment.Top) {
