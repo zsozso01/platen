@@ -29,7 +29,11 @@ public class NsdPrinterDiscovery(private val context: Context) {
     public fun discover(): Flow<List<DiscoveredPrinter>> = callbackFlow {
         val found = LinkedHashMap<String, DiscoveredPrinter>() // keyed by service instance + type
         val lock = multicastLock()
-        val worker = Executors.newSingleThreadExecutor { Thread(it, "platen-nsd").apply { isDaemon = true } }
+        val thread = Executors.newSingleThreadExecutor { Thread(it, "platen-nsd").apply { isDaemon = true } }
+        // NsdManager keeps calling back for a moment after discovery is stopped (for example
+        // onServiceInfoCallbackUnregistered). A shut-down executor would throw RejectedExecutionException on
+        // the system's thread and crash the app, so late callbacks are dropped quietly instead.
+        val worker = java.util.concurrent.Executor { task -> try { thread.execute(task) } catch (_: java.util.concurrent.RejectedExecutionException) {} }
         val resolver = ResolveQueue(nsd, worker)
         val serviceCallbacks = mutableMapOf<String, NsdManager.ServiceInfoCallback>()
 
@@ -91,7 +95,7 @@ public class NsdPrinterDiscovery(private val context: Context) {
             runCatching { nsd.stopServiceDiscovery(tls) }
             if (Build.VERSION.SDK_INT >= 34) serviceCallbacks.values.forEach { runCatching { nsd.unregisterServiceInfoCallback(it) } }
             resolver.clear()
-            worker.shutdown()
+            thread.shutdown()
             lock?.let { if (it.isHeld) it.release() }
         }
     }
