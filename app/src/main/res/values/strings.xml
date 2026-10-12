@@ -97,7 +97,8 @@
     <string name="sides_backs_reversed_hint">Normally leave this off. If the backs come out in the wrong order (page 1 has the last page on its back), turn it on and print again.</string>
     <string name="flip_intro">This printer cannot print on both sides by itself, so Platen does it in two passes: first the front of every sheet, then, after you put the paper back, the backs.</string>
     <string name="flip_step1">1. The fronts print. Sheet 1 has page 1.</string>
-    <string name="flip_step2">2. Take the whole pile out and flip it over, keeping the order.</string>
+    <string name="flip_step2_long">2. Flip the whole pile sideways, like turning a book page. Keep the order.</string>
+    <string name="flip_step2_short">2. Flip the whole pile upwards, like turning a notepad page. Keep the order.</string>
     <string name="flip_step3">3. Put it back and continue. Sheet 1 now gets page 2 on its back.</string>
     <string name="pages_reverse">Reverse order</string>
     <string name="setting_scaling">Scaling</string>
@@ -176,6 +177,7 @@
     <string name="job_attention_title">The printer needs attention</string>
     <string name="job_cancel">Cancel printing</string>
     <string name="job_detached_title">The printer stopped answering</string>
+    <string name="job_sheet_of">Printing sheet %1$d of %2$d</string>
     <string name="job_hide">Hide</string>
 
     <!-- Failures -->

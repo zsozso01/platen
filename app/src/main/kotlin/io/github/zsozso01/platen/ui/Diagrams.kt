@@ -18,6 +18,8 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
@@ -175,50 +177,57 @@ fun PagesPerSheetArt(count: Int, modifier: Modifier = Modifier) {
 }
 
 /**
- * A pile of three sheets with a page number on the top one. With [flip] set, the pile turns over about its
- * horizontal axis (squashed to a line halfway, then back with the other face up), which is the movement the
- * user makes when they flip the printed stack.
+ * A pile of three portrait sheets. With [flip] set it turns over about the fold line: a vertical line for the
+ * long edge (like a book page, sideways) or a horizontal one for the short edge (like a notepad page, upwards).
  */
 @Composable
-fun PileArt(pageLabel: String, flip: Boolean, modifier: Modifier = Modifier, backFace: Boolean = false) {
+fun PileArt(pageLabel: String, flip: Boolean, longEdge: Boolean, modifier: Modifier = Modifier, backFace: Boolean = false, showAxis: Boolean = false) {
     val measurer = rememberTextMeasurer()
-    val phase by loop(2600)
+    val phase by loop(2800)
     Art(modifier, "A pile of printed sheets") { ink ->
-        // 0..1 holds, 1..2 turns (as a fraction of the loop), so the pile rests between turns.
-        val t = if (flip) ((phase - 0.25f) / 0.5f).coerceIn(0f, 1f) else 0f
-        val angle = Math.PI.toFloat() * FastOutSlowInEasing.transform(t)
-        val k = kotlin.math.cos(angle)
+        val t = if (flip) ((phase - 0.2f) / 0.55f).coerceIn(0f, 1f) else 0f
+        val k = kotlin.math.cos(Math.PI.toFloat() * FastOutSlowInEasing.transform(t))
         val showBack = backFace || (flip && k < 0f)
         val colour = if (showBack) ink.warm else ink.cool
-        val cy = 62f
-        val ky = if (flip) k.coerceIn(-1f, 1f) else 1f
+        val cx = 75f
+        val cy = 60f
+        val sw = 48f
+        val sh = 68f
+        val kx = if (longEdge && flip) k else 1f
+        val ky = if (!longEdge && flip) k else 1f
         repeat(3) { i ->
-            val y = cy - 30f * ky + i * 7f * ky
-            val h = 60f * ky
-            val x = 30f + i * 6f
-            val rectTop = minOf(y, y + h)
-            val rectH = kotlin.math.abs(h).coerceAtLeast(1.5f)
+            val ox = (i - 1) * 4f
+            val oy = (1 - i) * 4f
+            val w = sw * kotlin.math.abs(kx)
+            val h = sh * kotlin.math.abs(ky)
+            val x = cx - w / 2f + ox * kx
+            val y = cy - h / 2f + oy * ky
             val isTop = i == 2
-            drawRoundRect(if (isTop) colour.copy(alpha = 0.18f) else ink.paper, Offset(x, rectTop), Size(66f, rectH), CornerRadius(3f))
-            drawRoundRect(if (isTop) colour else ink.line, Offset(x, rectTop), Size(66f, rectH), CornerRadius(3f), style = Stroke(1.2f))
-            if (isTop && kotlin.math.abs(ky) > 0.5f) {
-                label(measurer, pageLabel, Offset(x + 33f - 7f, rectTop + rectH / 2f - 11f), colour, 22f)
+            drawRoundRect(if (isTop) colour.copy(alpha = 0.18f) else ink.paper, Offset(x, y), Size(w.coerceAtLeast(1.5f), h.coerceAtLeast(1.5f)), CornerRadius(3f))
+            drawRoundRect(if (isTop) colour else ink.line, Offset(x, y), Size(w.coerceAtLeast(1.5f), h.coerceAtLeast(1.5f)), CornerRadius(3f), style = Stroke(1.3f))
+            if (isTop && pageLabel.isNotEmpty() && w > 24f && h > 34f) {
+                label(measurer, pageLabel, Offset(x + w / 2f - 7f, y + h / 2f - 12f), colour, 22f)
             }
+        }
+        if (showAxis) {
+            val dash = androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(4f, 3f))
+            if (longEdge) drawLine(ink.warm, Offset(cx, cy - 46f), Offset(cx, cy + 46f), 2f, StrokeCap.Round, pathEffect = dash)
+            else drawLine(ink.warm, Offset(cx - 44f, cy), Offset(cx + 44f, cy), 2f, StrokeCap.Round, pathEffect = dash)
         }
     }
 }
 
 /** The three steps of manual two-sided printing, as pictures with a caption each. */
 @Composable
-fun FlipSteps(modifier: Modifier = Modifier) {
+fun FlipSteps(longEdge: Boolean, modifier: Modifier = Modifier) {
     androidx.compose.foundation.layout.Row(modifier.fillMaxWidth(), horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)) {
         listOf(
             Triple("1", false, stringResource(R.string.flip_step1)),
-            Triple("", true, stringResource(R.string.flip_step2)),
+            Triple("", true, stringResource(if (longEdge) R.string.flip_step2_long else R.string.flip_step2_short)),
             Triple("2", false, stringResource(R.string.flip_step3)),
         ).forEachIndexed { i, (label, flip, caption) ->
             androidx.compose.foundation.layout.Column(Modifier.weight(1f), horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally) {
-                PileArt(label.ifEmpty { "" }, flip, Modifier.fillMaxWidth(), backFace = i == 2)
+                PileArt(label, flip, longEdge, Modifier.fillMaxWidth(), backFace = i == 2, showAxis = flip)
                 androidx.compose.material3.Text(caption, style = MaterialTheme.typography.labelMedium, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
             }
         }
@@ -280,6 +289,46 @@ fun PrinterArt(phase: JobPhase, modifier: Modifier = Modifier) {
                 arrowPath(p, ink.warm, listOf(Offset(119f, 99f), Offset(124f, 100f), Offset(125f, 105f)), 0.4f + 0.6f * sin(tick * 3.14f))
             }
             else -> Unit
+        }
+    }
+}
+
+/**
+ * A printer with the page that is printing right now coming out of it. [fraction] is how much of the page the
+ * printer has put on paper, so the visible part of the sheet is exactly the part already printed.
+ */
+@Composable
+fun PrintingArt(page: android.graphics.Bitmap?, fraction: Float, modifier: Modifier = Modifier) {
+    val tick by loop(900)
+    val image = remember(page) { page?.asImageBitmap() }
+    val colorsBody = MaterialTheme.colorScheme.primary
+    val colorsAccent = MaterialTheme.colorScheme.primary
+    val colorsLine = MaterialTheme.colorScheme.outline
+    Canvas(modifier.aspectRatio(100f / 128f).semantics { contentDescription = "The page being printed" }) {
+        val k = size.width / 100f
+        scale(k, k, pivot = Offset.Zero) {
+            val body = colorsBody
+            drawRoundRect(body.copy(alpha = 0.16f), Offset(6f, 4f), Size(88f, 36f), CornerRadius(8f))
+            drawRoundRect(body, Offset(6f, 4f), Size(88f, 36f), CornerRadius(8f), style = Stroke(1.5f))
+            drawLine(colorsLine, Offset(14f, 38f), Offset(86f, 38f), 2f, StrokeCap.Round)
+            val ratio = if (page != null && page.width > 0) page.height.toFloat() / page.width else 1.414f
+            val maxW = 64f
+            val maxH = 84f
+            val w = if (ratio * maxW <= maxH) maxW else maxH / ratio
+            val h = w * ratio
+            val x = 50f - w / 2f
+            val visible = (h * fraction.coerceIn(0f, 1f))
+            if (visible > 0.5f) {
+                drawRect(Color.White, Offset(x, 39f), Size(w, visible))
+                if (image != null) {
+                    val srcH = (image.height * fraction.coerceIn(0f, 1f)).toInt().coerceAtLeast(1)
+                    drawImage(image, srcOffset = androidx.compose.ui.unit.IntOffset.Zero, srcSize = androidx.compose.ui.unit.IntSize(image.width, srcH), dstOffset = androidx.compose.ui.unit.IntOffset(x.toInt(), 39), dstSize = androidx.compose.ui.unit.IntSize(w.toInt(), visible.toInt().coerceAtLeast(1)))
+                }
+                drawRect(colorsLine, Offset(x, 39f), Size(w, visible), style = Stroke(0.8f))
+                // The wet edge: where the ink is going on right now.
+                drawLine(colorsAccent.copy(alpha = 0.5f + 0.5f * kotlin.math.abs(kotlin.math.sin(tick * 3.14f))), Offset(x, 39f + visible), Offset(x + w, 39f + visible), 1.6f, StrokeCap.Round)
+            }
+            drawCircle(colorsAccent.copy(alpha = 0.35f + 0.65f * kotlin.math.abs(kotlin.math.sin(tick * 3.14f))), 3f, Offset(84f, 14f))
         }
     }
 }

@@ -18,6 +18,7 @@ import io.github.zsozso01.platen.core.model.Scaling
 import io.github.zsozso01.platen.data.SavedPrinter
 import io.github.zsozso01.platen.job.RefCountedDocument
 import io.github.zsozso01.platen.job.asSource
+import io.github.zsozso01.platen.job.renderSideBitmap
 import io.github.zsozso01.platen.platform.render.AndroidSideRasterizer
 import io.github.zsozso01.platen.platform.render.ImageDocument
 import kotlinx.coroutines.CoroutineScope
@@ -146,7 +147,7 @@ class PrintSession(
         val printer = s.printer ?: return false
         val caps = (s.caps as? CapsState.Ready)?.capabilities ?: return false
         if (s.plan !is PlanState.Ready) return false
-        return container.jobManager.start(document, printer, caps, s.settings)
+        return container.jobManager.start(document, printer, caps, s.settings, s.plan.plan)
     }
 
     fun close() {
@@ -203,26 +204,8 @@ class PrintSession(
         }
     }
 
-    private suspend fun renderPreview(layout: LayoutPlan, sideIndex: Int): Bitmap? = withContext(Dispatchers.IO) {
-        runCatching {
-            val dpi = PREVIEW_DPI
-            val rasterizer = AndroidSideRasterizer(document, bandRows = 128)
-            try {
-                val side = rasterizer.rasterize(layout.sides[sideIndex], layout.sheet, dpi, RasterPixelFormat.RGB24)
-                val width = side.widthPx
-                val height = side.heightPx
-                val rows = ByteArray(width * height * 3)
-                side.readRows(0, height, rows)
-                val pixels = IntArray(width * height)
-                for (i in pixels.indices) {
-                    pixels[i] = 0xFF shl 24 or ((rows[i * 3].toInt() and 0xFF) shl 16) or ((rows[i * 3 + 1].toInt() and 0xFF) shl 8) or (rows[i * 3 + 2].toInt() and 0xFF)
-                }
-                Bitmap.createBitmap(pixels, width, height, Bitmap.Config.ARGB_8888)
-            } finally {
-                rasterizer.close()
-            }
-        }.getOrNull()
-    }
+    private suspend fun renderPreview(layout: LayoutPlan, sideIndex: Int): Bitmap? =
+        withContext(Dispatchers.IO) { renderSideBitmap(document, layout, sideIndex, PREVIEW_DPI) }
 
     private companion object {
         const val PREVIEW_DPI = 60

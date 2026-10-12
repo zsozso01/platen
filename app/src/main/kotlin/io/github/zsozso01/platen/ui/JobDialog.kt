@@ -13,6 +13,12 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameMillis
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -49,10 +55,15 @@ fun JobCard(job: JobUiState, onCancel: () -> Unit, onReloaded: () -> Unit, onDon
         latest is JobEvent.Printing || latest is JobEvent.Accepted -> JobPhase.PRINTING
         else -> JobPhase.WORKING
     }
+    val position = printPosition(job, phase)
     ElevatedCard(modifier.fillMaxWidth().padding(horizontal = 12.dp)) {
         Column(Modifier.padding(horizontal = 14.dp, vertical = 12.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                PrinterArt(phase, Modifier.width(76.dp))
+                if (position != null) {
+                    PrintingArt(job.thumbs[job.faces.getOrNull(position.face)], position.fraction, Modifier.width(84.dp))
+                } else {
+                    PrinterArt(phase, Modifier.width(76.dp))
+                }
                 Column(Modifier.weight(1f).padding(start = 12.dp)) {
                     Text(job.documentName, style = MaterialTheme.typography.titleSmall, maxLines = 1)
                     Text(
@@ -62,6 +73,7 @@ fun JobCard(job: JobUiState, onCancel: () -> Unit, onReloaded: () -> Unit, onDon
                             finished == JobEvent.Canceled -> stringResource(R.string.job_canceled)
                             finished is JobEvent.Failed -> stringResource(R.string.job_failed_title)
                             finished is JobEvent.Detached -> stringResource(R.string.job_detached_title)
+                            position != null && position.stage == PrintStage.PRINTING -> stringResource(R.string.job_sheet_of, position.face + 1, job.faces.size)
                             else -> jobStatusText(job)
                         },
                         style = MaterialTheme.typography.bodyMedium,
@@ -105,4 +117,37 @@ fun JobCard(job: JobUiState, onCancel: () -> Unit, onReloaded: () -> Unit, onDon
             }
         }
     }
+}
+
+enum class PrintStage { PREPARING, PRINTING }
+
+/** Where the printer is, as a sheet number and how far down that sheet the ink has got. */
+data class PrintPosition(val face: Int, val fraction: Float, val stage: PrintStage)
+
+/**
+ * Estimates what the printer is doing right now. A printer reports little, so this combines what is known:
+ * how much of the job it has received, the sheet counter when it reports one, and how long a sheet has taken so
+ * far. The printer cannot be ahead of the data it has, so the estimate is capped by what was sent.
+ * Returns null when the pages of the job are unknown (a PDF the printer prints itself).
+ */
+@Composable
+fun printPosition(job: JobUiState, phase: JobPhase): PrintPosition? {
+    var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    val running = job.finished == null
+    LaunchedEffect(running) {
+        while (running) {
+            withFrameMillis { now = System.currentTimeMillis() }
+        }
+    }
+    val n = job.faces.size
+    if (n == 0 || phase == JobPhase.WAITING || phase == JobPhase.FAILED || job.finished != null && job.finished != JobEvent.Completed) return null
+    if (job.finished == JobEvent.Completed) return PrintPosition(n - 1, 1f, PrintStage.PRINTING)
+    val start = job.printStartMs ?: return PrintPosition(0, 0f, PrintStage.PREPARING)
+    val sheetMs = job.sheetMs.coerceAtLeast(1_000L).toFloat()
+    val estimated = job.sheetsDone?.let { done -> done + ((now - (job.sheetDoneAtMs ?: start)) / sheetMs).coerceIn(0f, 0.95f) }
+        ?: ((now - start) / sheetMs)
+    val received = job.sendFraction * n
+    val position = minOf(estimated, received, n - 0.02f).coerceAtLeast(0f)
+    val face = position.toInt().coerceAtMost(n - 1)
+    return PrintPosition(face, position - face, PrintStage.PRINTING)
 }

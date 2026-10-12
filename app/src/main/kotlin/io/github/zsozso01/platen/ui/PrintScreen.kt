@@ -214,7 +214,7 @@ private fun Settings(state: PrintUiState, session: PrintSession, caps: PrinterCa
             ) { v -> session.update { it.copy(sides = v) } }
             if (s.sides != Sides.ONE_SIDED) {
                 Text(stringResource(R.string.flip_intro), style = MaterialTheme.typography.bodyMedium)
-                FlipSteps()
+                FlipSteps(longEdge = s.sides == Sides.TWO_SIDED_LONG_EDGE)
                 SwitchRow(
                     stringResource(R.string.sides_backs_reversed),
                     s.manualBacksLastToFirst,
