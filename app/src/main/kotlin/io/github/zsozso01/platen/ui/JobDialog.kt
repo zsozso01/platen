@@ -1,11 +1,20 @@
 package io.github.zsozso01.platen.ui
 
+import android.graphics.Bitmap
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.aspectRatio
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.LinearProgressIndicator
@@ -21,11 +30,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameMillis
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import io.github.zsozso01.platen.R
 import io.github.zsozso01.platen.core.model.JobEvent
 import io.github.zsozso01.platen.job.JobUiState
+import io.github.zsozso01.platen.job.ReloadUi
 
 /** One-line status for a running job, also used by the home screen banner. */
 @Composable
@@ -73,6 +86,7 @@ fun JobCard(job: JobUiState, onCancel: () -> Unit, onReloaded: () -> Unit, onDon
                             finished == JobEvent.Canceled -> stringResource(R.string.job_canceled)
                             finished is JobEvent.Failed -> stringResource(R.string.job_failed_title)
                             finished is JobEvent.Detached -> stringResource(R.string.job_detached_title)
+                            job.printingBacks && position != null && position.stage == PrintStage.PRINTING -> stringResource(R.string.job_back_of, position.face + 1, job.faces.size)
                             position != null && position.stage == PrintStage.PRINTING -> stringResource(R.string.job_sheet_of, position.face + 1, job.faces.size)
                             else -> jobStatusText(job)
                         },
@@ -92,7 +106,7 @@ fun JobCard(job: JobUiState, onCancel: () -> Unit, onReloaded: () -> Unit, onDon
             }
             when {
                 job.waitingForReload -> {
-                    Text(stringResource(R.string.job_reload_body), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 8.dp))
+                    ReloadSteps(job.reload, job.reload?.let { job.thumbs[it.firstSheetSide] })
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
                         TextButton(onClick = onCancel) { Text(stringResource(R.string.job_cancel)) }
                         Button(onClick = onReloaded) { Text(stringResource(R.string.job_reload_continue)) }
@@ -115,6 +129,54 @@ fun JobCard(job: JobUiState, onCancel: () -> Unit, onReloaded: () -> Unit, onDon
                     TextButton(onClick = onCancel) { Text(stringResource(R.string.job_cancel)) }
                 }
             }
+        }
+    }
+}
+
+/**
+ * What to do with the printed pile before the second pass of a manual two-sided job: how many sheets, how to turn
+ * them over, and which sheet must go in first, with a picture of its front.
+ */
+@Composable
+private fun ReloadSteps(reload: ReloadUi?, firstThumb: Bitmap?) {
+    if (reload == null) {
+        Text(stringResource(R.string.job_reload_generic), style = MaterialTheme.typography.bodyMedium, modifier = Modifier.padding(top = 8.dp))
+        return
+    }
+    Column(
+        Modifier.padding(top = 8.dp).heightIn(max = 360.dp).verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+            PileArt("", flip = true, longEdge = reload.longEdge, modifier = Modifier.width(110.dp), showAxis = true)
+            Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                if (firstThumb != null) {
+                    Image(
+                        remember(firstThumb) { firstThumb.asImageBitmap() },
+                        contentDescription = stringResource(R.string.job_reload_first_desc, reload.firstSheetPages),
+                        modifier = Modifier.width(56.dp)
+                            .aspectRatio(firstThumb.width.toFloat() / firstThumb.height)
+                            .background(Color.White)
+                            .border(1.dp, MaterialTheme.colorScheme.outline),
+                    )
+                } else {
+                    Box(
+                        Modifier.width(56.dp).aspectRatio(0.707f).background(Color.White).border(1.dp, MaterialTheme.colorScheme.outline),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(reload.firstSheetPages, style = MaterialTheme.typography.labelSmall, color = Color.Black)
+                    }
+                }
+                Text(stringResource(R.string.job_reload_first_caption), style = MaterialTheme.typography.labelSmall)
+            }
+        }
+        Text(pluralStringResource(R.plurals.job_reload_take, reload.sheetCount, reload.sheetCount), style = MaterialTheme.typography.bodyMedium)
+        Text(stringResource(if (reload.longEdge) R.string.job_reload_flip_long else R.string.job_reload_flip_short), style = MaterialTheme.typography.bodyMedium)
+        Text(stringResource(R.string.job_reload_first, reload.firstSheetPages), style = MaterialTheme.typography.bodyMedium)
+        if (reload.firstSheetBackBlank) {
+            Text(stringResource(R.string.job_reload_first_blank), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.tertiary)
+        } else if (reload.blankBackPages != null) {
+            Text(stringResource(R.string.job_reload_blank, reload.blankBackPages), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.tertiary)
         }
     }
 }

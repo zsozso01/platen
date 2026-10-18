@@ -2,9 +2,12 @@ package io.github.zsozso01.platen.ui
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.aspectRatio
@@ -13,18 +16,26 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -35,9 +46,11 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -45,12 +58,19 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import io.github.zsozso01.platen.R
 import io.github.zsozso01.platen.core.engine.Decision
+import io.github.zsozso01.platen.core.engine.ManualDuplexOptions
+import io.github.zsozso01.platen.core.engine.Pass
 import io.github.zsozso01.platen.core.engine.PrintPlan
 import io.github.zsozso01.platen.core.engine.SettingKind
+import io.github.zsozso01.platen.core.engine.printsBothSides
+import io.github.zsozso01.platen.core.engine.reloadGuide
 import io.github.zsozso01.platen.core.model.ColorMode
 import io.github.zsozso01.platen.core.model.MarginSetting
 import io.github.zsozso01.platen.core.model.Margins
@@ -100,7 +120,7 @@ fun PrintScreen(
             item { Preview(state, session) }
             item { PrinterSection(state, session) }
             if (ready != null) {
-                item { Settings(state, session, ready.capabilities) }
+                item { Settings(state, session, ready.capabilities, plan) }
                 item { Notes(state, plan) }
             }
             item { Spacer(Modifier.height(24.dp)) }
@@ -110,40 +130,138 @@ fun PrintScreen(
 
 @Composable
 private fun sheetSummary(plan: PrintPlan?, state: PrintUiState): String {
-    val layout = plan?.layout ?: state.layout ?: return stringResource(R.string.print_loading)
-    if (layout.isEmpty) return stringResource(R.string.print_nothing)
-    val duplex = layout.requiresDuplex || (state.settings.sides.isDuplex)
-    val sheets = layout.sheetCount(duplex) * state.settings.copies.coerceAtLeast(1)
-    return if (sheets == 1) stringResource(R.string.print_sheet_one) else stringResource(R.string.print_sheets, sheets)
+    // The same sheet list the preview pages through, so the bottom bar and the pager always agree.
+    val preview = state.sheetPreview
+    if (preview == null) {
+        val layout = plan?.layout ?: state.layout ?: return stringResource(R.string.print_loading)
+        return stringResource(if (layout.isEmpty) R.string.print_nothing else R.string.print_loading)
+    }
+    val perCopy = preview.sheets.size
+    val copies = state.settings.copies.coerceAtLeast(1)
+    val total = perCopy * copies
+    return when {
+        copies > 1 -> stringResource(R.string.print_sheets_copies, total, copies, perCopy)
+        total == 1 -> stringResource(R.string.print_sheet_one)
+        else -> stringResource(R.string.print_sheets, total)
+    }
 }
 
+/** The sheets of one copy as they will come out: front and back side by side, a pager, an overview and, for manual two-sided, the two passes. */
 @Composable
 private fun Preview(state: PrintUiState, session: PrintSession) {
-    val layout = state.layout
-    val sides = layout?.sides?.size ?: 0
+    val preview = state.sheetPreview
+    val front = state.previewFront
+    val back = state.previewBack
+    val current = state.previewSheet
+    val sheetNo = current + 1
+    val count = preview?.sheets?.size ?: 0
+    val labels = preview?.labels?.getOrNull(current)
+    val manual = (state.plan as? PlanState.Ready)?.plan?.needsReload == true
     Column(Modifier.fillMaxWidth().padding(top = 8.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Box(
             Modifier.fillMaxWidth().heightIn(max = 380.dp).background(MaterialTheme.colorScheme.surfaceVariant, MaterialTheme.shapes.medium).padding(12.dp),
             contentAlignment = Alignment.Center,
         ) {
-            val bitmap = state.preview
-            if (bitmap != null) {
+            if (preview == null || front == null) {
+                CircularProgressIndicator(Modifier.size(24.dp), strokeWidth = 2.dp)
+            } else if (!preview.twoSided) {
                 Image(
-                    bitmap = bitmap.asImageBitmap(),
-                    contentDescription = null,
+                    bitmap = remember(front) { front.asImageBitmap() },
+                    contentDescription = stringResource(R.string.preview_front_desc, sheetNo, labels?.first.orEmpty()),
                     contentScale = ContentScale.Fit,
-                    modifier = Modifier.heightIn(max = 356.dp).aspectRatio(bitmap.width.toFloat() / bitmap.height).background(Color.White),
+                    modifier = Modifier.heightIn(max = 356.dp).aspectRatio(preview.aspect).background(Color.White),
                 )
             } else {
-                CircularProgressIndicator()
+                Row(Modifier.widthIn(max = 480.dp), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.Top) {
+                    Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(stringResource(R.string.preview_front), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(bottom = 4.dp))
+                        Image(
+                            bitmap = remember(front) { front.asImageBitmap() },
+                            contentDescription = stringResource(R.string.preview_front_desc, sheetNo, labels?.first.orEmpty()),
+                            contentScale = ContentScale.Fit,
+                            modifier = Modifier.fillMaxWidth().aspectRatio(preview.aspect).background(Color.White),
+                        )
+                    }
+                    Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text(stringResource(R.string.preview_back), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(bottom = 4.dp))
+                        val face = Modifier.fillMaxWidth().aspectRatio(preview.aspect)
+                        val backPages = labels?.second
+                        if (backPages == null) {
+                            val blankDescription = stringResource(R.string.preview_blank_desc, sheetNo)
+                            Box(
+                                face.background(Color.White).border(1.dp, MaterialTheme.colorScheme.outlineVariant).clearAndSetSemantics { contentDescription = blankDescription },
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Text(stringResource(R.string.preview_blank), style = MaterialTheme.typography.labelLarge, color = Color.Gray)
+                            }
+                        } else if (back == null) {
+                            // Printed, but the picture is still being drawn.
+                            Box(face.background(Color.White), contentAlignment = Alignment.Center) {
+                                CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
+                            }
+                        } else {
+                            Image(
+                                bitmap = remember(back) { back.asImageBitmap() },
+                                contentDescription = stringResource(R.string.preview_back_desc, sheetNo, backPages),
+                                contentScale = ContentScale.Fit,
+                                modifier = face.background(Color.White),
+                            )
+                        }
+                    }
+                }
             }
         }
-        if (sides > 1) {
+        if (count > 1) {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                IconButton(onClick = { session.setPreviewSide(state.previewSide - 1) }, enabled = state.previewSide > 0) { Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = null) }
-                Text(stringResource(R.string.print_page_of, state.previewSide + 1, sides), style = MaterialTheme.typography.bodyMedium)
-                IconButton(onClick = { session.setPreviewSide(state.previewSide + 1) }, enabled = state.previewSide < sides - 1) { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null) }
+                IconButton(onClick = { session.setPreviewSheet(current - 1) }, enabled = current > 0) { Icon(Icons.AutoMirrored.Filled.KeyboardArrowLeft, contentDescription = stringResource(R.string.preview_prev)) }
+                Text(stringResource(R.string.print_page_of, sheetNo, count), style = MaterialTheme.typography.bodyMedium)
+                IconButton(onClick = { session.setPreviewSheet(current + 1) }, enabled = current < count - 1) { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = stringResource(R.string.preview_next)) }
             }
+        }
+        if (preview != null && preview.twoSided && manual && labels != null && labels.second == null) {
+            Text(
+                stringResource(R.string.preview_blank_back_manual),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.tertiary,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(horizontal = 8.dp),
+            )
+        }
+        if (preview != null && count > 1) SheetOverview(preview, current, session::setPreviewSheet)
+        if (preview != null && preview.passes.isNotEmpty()) PassLines(preview.passes)
+    }
+}
+
+/** One selectable chip per sheet, "front | back", scrolled to keep the shown sheet in view. */
+@Composable
+private fun SheetOverview(preview: SheetPreview, selected: Int, onSelect: (Int) -> Unit) {
+    val listState = rememberLazyListState()
+    LaunchedEffect(selected) { if (selected in preview.labels.indices) listState.animateScrollToItem(selected) }
+    Text(stringResource(R.string.preview_overview), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
+    LazyRow(Modifier.fillMaxWidth(), state = listState, horizontalArrangement = Arrangement.spacedBy(6.dp), contentPadding = PaddingValues(horizontal = 2.dp)) {
+        itemsIndexed(preview.labels) { i, (frontPages, backPages) ->
+            val text = if (preview.twoSided) "${frontPages ?: "–"} | ${backPages ?: "–"}" else (frontPages ?: "–")
+            FilterChip(selected = i == selected, onClick = { onSelect(i) }, label = { Text(text) })
+        }
+    }
+}
+
+/** Manual two-sided only: the pages of each pass in the order the printer gets them. */
+@Composable
+private fun PassLines(passes: List<PassLabels>) {
+    Column(Modifier.fillMaxWidth().padding(top = 6.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+        passes.forEach { pass ->
+            val blank = stringResource(R.string.preview_pass_blank)
+            // Labels such as "1–4" or "1–3, 7" already hold dashes or commas, so they need a different separator.
+            val separator = if (pass.faces.all { it == null || ('–' !in it && ',' !in it) }) ", " else " · "
+            val list = pass.faces.joinToString(separator) { it ?: blank }
+            val line = when (pass.role) {
+                Pass.Role.FRONTS -> stringResource(R.string.preview_pass_fronts, list)
+                Pass.Role.BACKS -> stringResource(R.string.preview_pass_backs, list)
+                Pass.Role.ALL -> list
+            }
+            val text = if (pass.repeatsForCopies) "$line ${stringResource(R.string.preview_pass_copies)}" else line
+            Text(text, style = MaterialTheme.typography.bodySmall, modifier = Modifier.fillMaxWidth())
         }
     }
 }
@@ -161,7 +279,7 @@ private fun PrinterSection(state: PrintUiState, session: PrintSession) {
         }
         when (val caps = state.caps) {
             CapsState.Loading -> Row(Modifier.padding(vertical = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                CircularProgressIndicator(Modifier.height(20.dp), strokeWidth = 2.dp)
+                CircularProgressIndicator(Modifier.size(20.dp), strokeWidth = 2.dp)
                 Text(stringResource(R.string.print_loading), modifier = Modifier.padding(start = 12.dp), style = MaterialTheme.typography.bodyMedium)
             }
             is CapsState.Failed -> Card(colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer), modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp)) {
@@ -180,7 +298,7 @@ private fun PrinterSection(state: PrintUiState, session: PrintSession) {
 }
 
 @Composable
-private fun Settings(state: PrintUiState, session: PrintSession, caps: PrinterCapabilities) {
+private fun Settings(state: PrintUiState, session: PrintSession, caps: PrinterCapabilities, plan: PrintPlan?) {
     val s = state.settings
     Column(Modifier.fillMaxWidth()) {
         SettingsCard(stringResource(R.string.section_basic), stringResource(R.string.section_basic_hint)) {
@@ -199,36 +317,31 @@ private fun Settings(state: PrintUiState, session: PrintSession, caps: PrinterCa
         }
 
         SettingsCard(stringResource(R.string.section_sides), stringResource(R.string.section_sides_hint)) {
-            if (s.sides != Sides.ONE_SIDED) SidesArt(s.sides == Sides.TWO_SIDED_LONG_EDGE, Modifier.height(104.dp).align(Alignment.CenterHorizontally))
+            // A booklet always prints on both sides, whatever the dropdown was set to before.
+            val sides = if (s.booklet) plan?.layout?.requiredSides ?: Sides.TWO_SIDED_SHORT_EDGE else s.sides
+            if (sides != Sides.ONE_SIDED) SidesArt(sides == Sides.TWO_SIDED_LONG_EDGE, Modifier.height(104.dp).align(Alignment.CenterHorizontally))
             DropdownSetting(
                 stringResource(R.string.setting_sides),
                 listOf(Sides.ONE_SIDED to stringResource(R.string.sides_one), Sides.TWO_SIDED_LONG_EDGE to stringResource(R.string.sides_long), Sides.TWO_SIDED_SHORT_EDGE to stringResource(R.string.sides_short)),
-                s.sides,
+                sides,
+                enabled = !s.booklet,
                 hint = stringResource(
-                    when (s.sides) {
-                        Sides.ONE_SIDED -> R.string.sides_one_hint
-                        Sides.TWO_SIDED_LONG_EDGE -> R.string.sides_long_hint
+                    when {
+                        s.booklet -> R.string.sides_booklet_hint
+                        s.sides == Sides.ONE_SIDED -> R.string.sides_one_hint
+                        s.sides == Sides.TWO_SIDED_LONG_EDGE -> R.string.sides_long_hint
                         else -> R.string.sides_short_hint
                     },
                 ),
             ) { v -> session.update { it.copy(sides = v) } }
-            if (s.sides != Sides.ONE_SIDED) {
-                Text(stringResource(R.string.flip_intro), style = MaterialTheme.typography.bodyMedium)
-                FlipSteps(longEdge = s.sides == Sides.TWO_SIDED_LONG_EDGE)
-                SwitchRow(
-                    stringResource(R.string.sides_backs_reversed),
-                    s.manualBacksLastToFirst,
-                    { r -> session.update { it.copy(manualBacksLastToFirst = r) } },
-                    supporting = stringResource(R.string.sides_backs_reversed_hint),
-                )
-            }
+            SidesHelp(plan, sides, s.manualBacksLastToFirst) { r -> session.update { it.copy(manualBacksLastToFirst = r) } }
         }
 
         SettingsCard(stringResource(R.string.setting_pages), stringResource(R.string.section_pages_hint)) {
             OutlinedTextField(
                 value = state.pageRangeText,
                 onValueChange = session::setPageRange,
-                label = { Text(stringResource(R.string.pages_all)) },
+                label = { Text(stringResource(R.string.pages_range_label)) },
                 placeholder = { Text(stringResource(R.string.pages_hint)) },
                 singleLine = true,
                 isError = state.pageRangeInvalid,
@@ -288,6 +401,56 @@ private fun Settings(state: PrintUiState, session: PrintSession, caps: PrinterCa
                 DropdownSetting(stringResource(R.string.setting_tray), options, s.tray) { t -> session.update { it.copy(tray = t) } }
             }
         }
+    }
+}
+
+/**
+ * Under the Two-sided dropdown: how the manual turn-over works with the real page numbers of this job, the
+ * rarely needed "wrong sheets" switch, or a line saying the printer does it all itself.
+ */
+@Composable
+private fun SidesHelp(plan: PrintPlan?, sides: Sides, backsLastToFirst: Boolean, onBacksLastToFirst: (Boolean) -> Unit) {
+    // Declared before any early exit so the answer survives the plan being recomputed.
+    var open by rememberSaveable { mutableStateOf(backsLastToFirst) }
+    if (plan == null) return
+    if (plan.needsReload) {
+        val guide = remember(plan, backsLastToFirst) { plan.reloadGuide(ManualDuplexOptions(reverseBackOrder = backsLastToFirst)) }
+        // The mix-up text says "with this off", so its example always comes from the default order.
+        val mixUp = remember(plan) { plan.reloadGuide()?.mixUpExample }
+        val longEdge = (guide?.binding ?: plan.manualDuplex?.binding ?: sides) != Sides.TWO_SIDED_SHORT_EDGE
+        val layout = plan.layout
+        Text(stringResource(R.string.flip_intro), style = MaterialTheme.typography.bodyMedium)
+        if (guide != null) {
+            val printed = guide.firstPrinted
+            FlipSteps(
+                longEdge = longEdge,
+                firstFront = layout.pagesLabel(guide.firstFront).orEmpty(),
+                firstBack = layout.pagesLabel(printed?.back),
+                firstBackFront = layout.pagesLabel(printed?.front),
+            )
+            guide.blankBackFronts.firstOrNull()?.let { layout.pagesLabel(it) }?.let { pages ->
+                Text(stringResource(R.string.flip_odd_note, pages), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.tertiary)
+            }
+        }
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(Modifier.fillMaxWidth().clickable { open = !open }.padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(stringResource(R.string.sides_trouble_title), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+                Icon(if (open) Icons.Filled.KeyboardArrowUp else Icons.Filled.KeyboardArrowDown, contentDescription = null)
+            }
+            if (open) {
+                val back = layout.pagesLabel(mixUp?.back)
+                val other = layout.pagesLabel(mixUp?.otherEndFront)
+                val front = layout.pagesLabel(mixUp?.front)
+                Text(
+                    if (back != null && other != null && front != null) stringResource(R.string.sides_trouble_body, back, other, front) else stringResource(R.string.sides_trouble_body_generic),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Text(stringResource(if (longEdge) R.string.sides_trouble_upside_down_long else R.string.sides_trouble_upside_down_short), style = MaterialTheme.typography.bodyMedium)
+                SwitchRow(stringResource(R.string.sides_backs_reversed), backsLastToFirst, onBacksLastToFirst, supporting = stringResource(R.string.sides_backs_reversed_hint))
+            }
+        }
+    } else if (plan.printsBothSides) {
+        Text(stringResource(R.string.sides_by_printer), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -374,7 +537,7 @@ private fun MarginsControl(margins: MarginSetting, customMm: String, session: Pr
 private fun settingLabel(kind: SettingKind): String = stringResource(
     when (kind) {
         SettingKind.COPIES, SettingKind.COLLATION -> R.string.setting_copies
-        SettingKind.SIDES -> R.string.setting_sides
+        SettingKind.SIDES -> R.string.section_sides
         SettingKind.PAGES, SettingKind.REVERSE -> R.string.setting_pages
         SettingKind.PAPER -> R.string.setting_paper
         SettingKind.PAPER_TYPE, SettingKind.TRAY, SettingKind.OUTPUT_BIN -> R.string.setting_tray
@@ -401,10 +564,12 @@ private fun Notes(state: PrintUiState, plan: PrintPlan?) {
         if (notable.isNotEmpty() || plan.needsReload) SettingsCard(stringResource(R.string.section_notes), stringResource(R.string.section_notes_hint)) {
             notable.forEach { d ->
                 val warning = d.outcome == Decision.Outcome.IGNORED || d.outcome == Decision.Outcome.APPROXIMATED
+                // The engine's own wording for manual two-sided printing is English only; the app has its own.
+                val text = if (d.setting == SettingKind.SIDES && d.outcome == Decision.Outcome.BY_APP) stringResource(R.string.note_manual_duplex) else d.detail ?: stringResource(R.string.note_by_app)
                 Row(verticalAlignment = Alignment.Top) {
                     if (warning) Icon(Icons.Default.Warning, contentDescription = null, tint = MaterialTheme.colorScheme.tertiary, modifier = Modifier.padding(end = 8.dp, top = 2.dp))
                     Text(
-                        text = "${settingLabel(d.setting)}: ${d.detail ?: stringResource(R.string.note_by_app)}",
+                        text = "${settingLabel(d.setting)}: $text",
                         style = MaterialTheme.typography.bodyMedium,
                         color = if (warning) MaterialTheme.colorScheme.tertiary else MaterialTheme.colorScheme.onSurface,
                     )

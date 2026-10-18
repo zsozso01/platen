@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.selection.selectable
@@ -145,7 +146,7 @@ private fun StatusLine(status: PrinterStatus) {
     Row(verticalAlignment = Alignment.CenterVertically) {
         when (status) {
             PrinterStatus.Checking -> {
-                CircularProgressIndicator(modifier = Modifier.height(14.dp).padding(end = 6.dp), strokeWidth = 2.dp)
+                CircularProgressIndicator(modifier = Modifier.padding(end = 6.dp).size(14.dp), strokeWidth = 2.dp)
                 Text(stringResource(R.string.printer_checking), style = MaterialTheme.typography.bodySmall)
             }
             PrinterStatus.Unreachable -> Text(stringResource(R.string.printer_unreachable), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.error)

@@ -9,8 +9,16 @@ import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
+import androidx.compose.material3.Text
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import io.github.zsozso01.platen.R
@@ -217,18 +225,27 @@ fun PileArt(pageLabel: String, flip: Boolean, longEdge: Boolean, modifier: Modif
     }
 }
 
-/** The three steps of manual two-sided printing, as pictures with a caption each. */
+/**
+ * The three steps of manual two-sided printing, one row each: a picture and a caption with real page numbers.
+ * [firstFront] is the page label of the first sheet printed. [firstBack] and [firstBackFront] are the pages on the
+ * back and on the front of the first sheet that gets a back printed, or null when no sheet does.
+ */
 @Composable
-fun FlipSteps(longEdge: Boolean, modifier: Modifier = Modifier) {
-    androidx.compose.foundation.layout.Row(modifier.fillMaxWidth(), horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(8.dp)) {
-        listOf(
-            Triple("1", false, stringResource(R.string.flip_step1)),
-            Triple("", true, stringResource(if (longEdge) R.string.flip_step2_long else R.string.flip_step2_short)),
-            Triple("2", false, stringResource(R.string.flip_step3)),
-        ).forEachIndexed { i, (label, flip, caption) ->
-            androidx.compose.foundation.layout.Column(Modifier.weight(1f), horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally) {
-                PileArt(label, flip, longEdge, Modifier.fillMaxWidth(), backFace = i == 2, showAxis = flip)
-                androidx.compose.material3.Text(caption, style = MaterialTheme.typography.labelMedium, textAlign = androidx.compose.ui.text.style.TextAlign.Center)
+fun FlipSteps(longEdge: Boolean, firstFront: String, firstBack: String?, firstBackFront: String?, modifier: Modifier = Modifier) {
+    // The picture has room for one number only: "1-4" and "1-3, 7" show as "1".
+    fun firstPage(pages: String) = pages.substringBefore('–').substringBefore(',')
+    val captions = listOf(
+        stringResource(R.string.flip_step1, firstFront),
+        stringResource(if (longEdge) R.string.flip_step2_long else R.string.flip_step2_short),
+        if (firstBack != null && firstBackFront != null) stringResource(R.string.flip_step3, firstBack, firstBackFront) else stringResource(R.string.flip_step3_plain),
+    )
+    val labels = listOf(firstPage(firstFront), "", firstBack?.let { firstPage(it) }.orEmpty())
+    Column(modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        captions.forEachIndexed { i, caption ->
+            val flip = i == 1
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                PileArt(labels[i], flip, longEdge, Modifier.width(76.dp), backFace = i == 2, showAxis = flip)
+                Text(caption, style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Start, modifier = Modifier.weight(1f).padding(start = 12.dp))
             }
         }
     }

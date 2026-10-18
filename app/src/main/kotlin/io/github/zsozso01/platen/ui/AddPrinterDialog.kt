@@ -136,7 +136,7 @@ fun AddPrinterDialog(
                 )
                 if (busy) {
                     Row(Modifier.padding(top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                        CircularProgressIndicator(Modifier.padding(end = 12.dp), strokeWidth = 2.dp)
+                        CircularProgressIndicator(Modifier.padding(end = 12.dp).size(18.dp), strokeWidth = 2.dp)
                         Text(stringResource(R.string.add_testing), style = MaterialTheme.typography.bodyMedium)
                     }
                 }

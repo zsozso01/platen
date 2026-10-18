@@ -59,22 +59,26 @@ class PrintJobService : Service() {
         }
 
         private fun build(context: Context, state: JobUiState?): Notification {
+            val needsReload = state?.latest == JobEvent.NeedsReload
             val text = when (val e = state?.latest) {
                 is JobEvent.Preparing -> context.getString(R.string.job_preparing, e.page, e.totalPages)
                 is JobEvent.Sending -> context.getString(R.string.job_sending)
                 is JobEvent.Printing -> context.getString(R.string.job_printing)
-                JobEvent.NeedsReload -> context.getString(R.string.job_reload_title)
+                JobEvent.NeedsReload ->
+                    state?.reload?.let { context.getString(R.string.job_reload_notification_first, it.firstSheetPages) }
+                        ?: context.getString(R.string.job_reload_notification)
                 else -> context.getString(R.string.job_starting)
             }
             val open = PendingIntent.getActivity(context, 0, Intent(context, MainActivity::class.java).addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP), PendingIntent.FLAG_IMMUTABLE)
-            return NotificationCompat.Builder(context, CHANNEL_ID)
+            val builder = NotificationCompat.Builder(context, CHANNEL_ID)
                 .setSmallIcon(R.drawable.ic_notification)
-                .setContentTitle(state?.documentName ?: context.getString(R.string.app_name))
+                .setContentTitle(if (needsReload) context.getString(R.string.job_reload_title) else state?.documentName ?: context.getString(R.string.app_name))
                 .setContentText(text)
                 .setOngoing(true)
                 .setOnlyAlertOnce(true)
                 .setContentIntent(open)
-                .build()
+            if (needsReload) builder.setStyle(NotificationCompat.BigTextStyle().bigText(text))
+            return builder.build()
         }
     }
 }

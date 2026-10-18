@@ -7,15 +7,17 @@ import io.github.zsozso01.platen.backend.pdf.PdfRasterBackend
 import io.github.zsozso01.platen.backend.raster.PwgRasterBackend
 import io.github.zsozso01.platen.core.engine.PrintEngine
 import io.github.zsozso01.platen.core.engine.ManualDuplexOptions
-import io.github.zsozso01.platen.core.engine.Pass
 import io.github.zsozso01.platen.core.engine.PrintPlan
 import io.github.zsozso01.platen.core.engine.RouteKind
 import io.github.zsozso01.platen.core.engine.PrintRequest
+import io.github.zsozso01.platen.core.engine.inSendOrder
+import io.github.zsozso01.platen.core.engine.reloadGuide
 import io.github.zsozso01.platen.core.model.DocumentFormat
 import io.github.zsozso01.platen.core.model.JobEvent
 import io.github.zsozso01.platen.core.model.PrintFailure
 import io.github.zsozso01.platen.core.model.PrintSettings
 import io.github.zsozso01.platen.core.model.PrinterCapabilities
+import io.github.zsozso01.platen.core.model.Sides
 import io.github.zsozso01.platen.data.SavedPrinter
 import io.github.zsozso01.platen.platform.render.AndroidSideRasterizer
 import kotlinx.coroutines.CompletableDeferred
@@ -55,6 +57,10 @@ data class JobUiState(
     val sheetDoneAtMs: Long? = null,
     /** Estimated time the printer needs for one sheet; learned from the printer's own sheet counter. */
     val sheetMs: Long = DEFAULT_SHEET_MS,
+    /** How to put the paper back for the second pass of a manual two-sided job; null when there is no such step. */
+    val reload: ReloadUi? = null,
+    /** True once the back sides are printing (after the user reloaded the paper). */
+    val printingBacks: Boolean = false,
 ) {
     val isRunning: Boolean get() = finished == null
 
@@ -62,6 +68,18 @@ data class JobUiState(
         const val DEFAULT_SHEET_MS = 9_000L
     }
 }
+
+/** What the user needs to know to put the paper back for the second pass of a manual two-sided job. */
+data class ReloadUi(
+    val sheetCount: Int,
+    val longEdge: Boolean,
+    /** Side index of the front of the sheet the printer must take first. */
+    val firstSheetSide: Int,
+    val firstSheetPages: String,
+    val firstSheetBackBlank: Boolean,
+    /** Pages label of another sheet whose back stays blank, or null. */
+    val blankBackPages: String?,
+)
 
 /**
  * Runs print jobs in the application's scope so they survive the screen closing, and keeps the process
@@ -80,15 +98,28 @@ class JobManager(
     private var job: Job? = null
     private var reloadAnswer: CompletableDeferred<Boolean>? = null
     private var currentPlan: PrintPlan? = null
-    private var reverseBacks = false
+    private var options = ManualDuplexOptions()
     private var passIndex = 0
 
     /** The faces of one pass in the order the printer gets them, as side indices. Mirrors what the engine sends. */
     private fun facesOfPass(index: Int): List<Int?> {
         val plan = currentPlan?.takeIf { it.route == RouteKind.RASTER } ?: return emptyList()
         val pass = plan.passes.getOrNull(index) ?: return emptyList()
-        val ordered = if (pass.role == Pass.Role.BACKS && reverseBacks) pass.faces.reversed() else pass.faces
-        return ordered.map { it.sideIndex }
+        return pass.inSendOrder(options).map { face -> face.sideIndex?.takeIf { plan.layout.pagesLabel(it) != null } }
+    }
+
+    /** How to reload the paper for the second pass, from the plan's reload guide; null when the plan has no such step. */
+    private fun reloadUi(plan: PrintPlan): ReloadUi? {
+        val guide = plan.reloadGuide(options) ?: return null
+        val first = guide.firstSheet
+        return ReloadUi(
+            sheetCount = guide.sheetCount,
+            longEdge = guide.binding != Sides.TWO_SIDED_SHORT_EDGE,
+            firstSheetSide = first.front,
+            firstSheetPages = plan.layout.pagesLabel(first.front) ?: (first.front + 1).toString(),
+            firstSheetBackBlank = first.back == null,
+            blankBackPages = guide.blankBackFronts.firstOrNull { it != first.front }?.let { plan.layout.pagesLabel(it) },
+        )
     }
 
     val isBusy: Boolean get() = _state.value?.isRunning == true
@@ -104,12 +135,16 @@ class JobManager(
         if (isBusy) return false
         val held = document.retain() ?: return false
         currentPlan = plan
-        reverseBacks = settings.manualBacksLastToFirst
+        options = ManualDuplexOptions(reverseBackOrder = settings.manualBacksLastToFirst)
         passIndex = 0
-        _state.value = JobUiState(document.name, printer.name, faces = facesOfPass(0))
+        val reload = plan?.let { reloadUi(it) }
+        _state.value = JobUiState(document.name, printer.name, faces = facesOfPass(0), reload = reload)
         if (plan != null && plan.route == RouteKind.RASTER) {
             scope.launch(Dispatchers.IO) {
-                plan.passes.flatMap { it.faces }.mapNotNull { it.sideIndex }.distinct().forEach { side ->
+                val sides = plan.passes.flatMap { it.faces }.mapNotNull { it.sideIndex }.distinct()
+                // The first sheet of the second pass goes first, so the reload card already has its picture when it is needed.
+                val ordered = reload?.let { listOf(it.firstSheetSide) + sides.filter { side -> side != it.firstSheetSide } } ?: sides
+                ordered.filterNot { plan.layout.sides[it].isBlank }.forEach { side ->
                     val bitmap = renderSideBitmap(held, plan.layout, side, THUMB_DPI) ?: return@forEach
                     _state.update { it?.copy(thumbs = it.thumbs + (side to bitmap)) }
                 }
@@ -138,7 +173,7 @@ class JobManager(
                     document = held.asSource(),
                     settings = settings,
                     capabilities = capabilities,
-                    manualDuplex = ManualDuplexOptions(reverseBackOrder = settings.manualBacksLastToFirst),
+                    manualDuplex = options,
                     jobName = document.name,
                     awaitReload = {
                         val answer = CompletableDeferred<Boolean>()
@@ -166,7 +201,7 @@ class JobManager(
         reloadAnswer = null
         passIndex++
         _state.update {
-            it?.copy(waitingForReload = false, faces = facesOfPass(passIndex), sendFraction = 0f, printStartMs = null, sheetsDone = null, sheetDoneAtMs = null)
+            it?.copy(waitingForReload = false, printingBacks = true, faces = facesOfPass(passIndex), sendFraction = 0f, printStartMs = null, sheetsDone = null, sheetDoneAtMs = null)
         }
     }
 
