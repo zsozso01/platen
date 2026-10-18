@@ -68,6 +68,7 @@
     <string name="print_to">To %1$s</string>
     <string name="print_page_of">Sheet %1$d of %2$d</string>
     <string name="print_sheets">%1$d sheets</string>
+    <string name="print_sheets_copies">%1$d sheets (%2$d copies of %3$d)</string>
     <string name="print_sheet_one">1 sheet</string>
     <string name="print_loading">Asking the printer what it can do…</string>
     <string name="print_caps_failed">Could not reach %1$s.</string>
@@ -76,31 +77,60 @@
     <string name="print_cannot_plan">This cannot be printed: %1$s</string>
     <string name="print_choose_printer">Printer</string>
 
+    <!-- Preview -->
+    <string name="preview_front">Front</string>
+    <string name="preview_back">Back</string>
+    <string name="preview_blank">Blank</string>
+    <string name="preview_prev">Previous sheet</string>
+    <string name="preview_next">Next sheet</string>
+    <string name="preview_front_desc">Front of sheet %1$d: page %2$s</string>
+    <string name="preview_back_desc">Back of sheet %1$d: page %2$s</string>
+    <string name="preview_blank_desc">Back of sheet %1$d: blank</string>
+    <string name="preview_overview">All sheets (front | back)</string>
+    <string name="preview_blank_back_manual">Nothing prints on this back, but the sheet goes through the printer again with the others.</string>
+    <string name="preview_pass_fronts">First pass, fronts: %1$s</string>
+    <string name="preview_pass_backs">Second pass, backs: %1$s</string>
+    <string name="preview_pass_blank">blank</string>
+    <string name="preview_pass_copies">(then the same for each copy)</string>
+
     <string name="setting_copies">Copies</string>
     <string name="setting_collate">Collate</string>
     <string name="setting_color">Colour</string>
     <string name="color_auto">Auto</string>
     <string name="color_color">Colour</string>
     <string name="color_mono">Black and white</string>
-    <string name="setting_sides">Two-sided</string>
+    <string name="setting_sides">Print on</string>
     <string name="sides_one">One side</string>
-    <string name="sides_long">Both sides, flip on long edge</string>
-    <string name="sides_short">Both sides, flip on short edge</string>
+    <string name="sides_long">Both sides, book style (long edge)</string>
+    <string name="sides_short">Both sides, notepad style (short edge)</string>
     <string name="setting_paper">Paper size</string>
     <string name="setting_pages">Pages</string>
-    <string name="pages_all">All pages</string>
-    <string name="pages_hint">All, or for example 1-3, 5</string>
+    <string name="pages_all">All</string>
+    <string name="pages_hint">All pages, or for example 1-3, 5</string>
+    <string name="pages_range_label">Page range</string>
     <string name="pages_invalid">Use page numbers like 1-3, 5, 8-</string>
-    <string name="pages_odd">Odd</string>
-    <string name="pages_even">Even</string>
-    <string name="sides_backs_reversed">Print backs in reverse order</string>
-    <string name="sides_backs_reversed_hint">Normally leave this off. If the backs come out in the wrong order (page 1 has the last page on its back), turn it on and print again.</string>
-    <string name="flip_intro">This printer cannot print on both sides by itself, so Platen does it in two passes: first the front of every sheet, then, after you put the paper back, the backs.</string>
-    <string name="flip_step1">1. The fronts print. Sheet 1 has page 1.</string>
-    <string name="flip_step2_long">2. Flip the whole pile sideways, like turning a book page. Keep the order.</string>
-    <string name="flip_step2_short">2. Flip the whole pile upwards, like turning a notepad page. Keep the order.</string>
-    <string name="flip_step3">3. Put it back and continue. Sheet 1 now gets page 2 on its back.</string>
-    <string name="pages_reverse">Reverse order</string>
+    <string name="pages_odd">Odd only</string>
+    <string name="pages_even">Even only</string>
+    <string name="pages_reverse">Print last sheet first</string>
+
+    <!-- Two-sided guide -->
+    <string name="sides_backs_reversed">Second pass: start from the other end of the pile</string>
+    <string name="sides_backs_reversed_hint">Prints the backs last to first.</string>
+    <string name="flip_intro">Your printer prints on one side only, so you turn the paper over once, halfway through: Platen prints every front, you put the pile back, then it prints every back.</string>
+    <string name="flip_step1">1. All the fronts print, starting with page %1$s.</string>
+    <string name="flip_step2_long">2. Take out the whole pile and turn it over like a book page. Keep the order.</string>
+    <string name="flip_step2_short">2. Take out the whole pile and turn it over like a notepad page, top to bottom. Keep the order.</string>
+    <string name="flip_step3">3. Put the whole pile back and continue. Page %1$s prints on the back of page %2$s.</string>
+    <string name="flip_step3_plain">3. Put the whole pile back and continue.</string>
+    <string name="flip_odd_note">The sheet with page %1$s has nothing on its back. Put it back with the others anyway: it goes through blank so the rest line up.</string>
+    <string name="sides_by_printer">Your printer turns the paper over by itself, so there is nothing for you to do.</string>
+    <string name="sides_trouble_title">Backs landed on the wrong sheets?</string>
+    <string name="sides_trouble_body">Some printers take the pile from the other end. If, with this off, page %1$s ended up on the back of page %2$s instead of page %3$s, turn it on and print again.</string>
+    <string name="sides_trouble_body_generic">Some printers take the pile from the other end. If the backs came out in order but on the wrong sheets, turn this on and print again.</string>
+    <string name="sides_trouble_upside_down_long">Backs upside down? At step 2, turn the pile over sideways like a book page, not top to bottom.</string>
+    <string name="sides_trouble_upside_down_short">Backs upside down? At step 2, turn the pile over top to bottom like a notepad page, not sideways.</string>
+    <string name="sides_booklet_hint">Booklets always print on both sides, turned over on the short edge.</string>
+
     <string name="setting_scaling">Scaling</string>
     <string name="scaling_shrink">Shrink to fit</string>
     <string name="scaling_fit">Fit to page</string>
@@ -129,21 +159,21 @@
     <string name="setting_tray">Paper tray</string>
     <string name="tray_auto">Automatic</string>
     <string name="section_notes_hint">What Platen will do with your choices on this printer</string>
-    <string name="section_basic_hint">The usual things</string>
+    <string name="section_basic_hint">Copies and colour</string>
     <string name="section_sides">Two-sided</string>
     <string name="section_sides_hint">Print on one or both sides of the paper</string>
-    <string name="section_pages_hint">Choose which pages go on paper, and in what order</string>
+    <string name="section_pages_hint">Which pages to print, and in what order</string>
     <string name="section_layout_hint">How the pages sit on the sheet</string>
     <string name="section_quality_hint">Print quality, paper and tray</string>
     <string name="setting_collate_hint">Print whole copies one after another (1-2-3, 1-2-3) instead of page by page (1-1, 2-2, 3-3)</string>
     <string name="setting_color_hint">Automatic keeps colour only where the page has it</string>
     <string name="sides_one_hint">Only the front of each sheet is printed</string>
-    <string name="sides_long_hint">Pages turn like a book. Pick this for most documents.</string>
-    <string name="sides_short_hint">Pages turn like a notepad or calendar, upwards</string>
+    <string name="sides_long_hint">Turns over on the long edge, like a book. Right for most documents.</string>
+    <string name="sides_short_hint">Turns over on the short edge, upwards like a notepad or calendar.</string>
     <string name="pages_range_hint">Leave empty to print everything. Example: 1-3, 7, 10-12</string>
-    <string name="pages_only">Print only</string>
-    <string name="pages_only_hint">Odd or even pages only, handy for two-sided printing by hand</string>
-    <string name="pages_reverse_hint">Last page first, so a face-up tray ends up in order</string>
+    <string name="pages_only">Odd or even</string>
+    <string name="pages_only_hint">For two-sided printing, use the Two-sided setting instead: Platen does the rest.</string>
+    <string name="pages_reverse_hint">Prints the last sheet first. Turn on if your finished pile comes out back to front.</string>
     <string name="pages_per_sheet_hint">Shrinks several pages onto each sheet to save paper</string>
     <string name="setting_booklet_hint">Two pages per side, ordered so the folded sheets read like a book</string>
     <string name="setting_economy_hint">Uses less toner or ink, lighter print</string>
@@ -155,7 +185,7 @@
 
     <!-- Decisions -->
     <string name="note_by_app">Platen does this itself</string>
-    <string name="note_manual_duplex">Manual two-sided printing: Platen prints the front sides, asks you to put the paper back, then prints the back sides.</string>
+    <string name="note_manual_duplex">You turn the paper over: Platen prints the fronts, you put the pile back, then it prints the backs.</string>
     <string name="note_collated_copies">Copies are sent one after another so they come out in order.</string>
 
     <!-- Job -->
@@ -171,9 +201,25 @@
     <string name="job_canceled">Printing was cancelled.</string>
     <string name="job_detached">The job was sent, but the printer stopped answering, so Platen cannot say how it ended. It may still print. Check the printer.</string>
     <string name="job_failed_title">Could not print</string>
-    <string name="job_reload_title">Put the paper back in</string>
-    <string name="job_reload_body">The fronts are printed. Take the whole pile out of the output tray, flip it over as one pile without changing the order, put it back into the paper tray, then continue.</string>
-    <string name="job_reload_continue">Paper is back, print the other sides</string>
+    <string name="job_reload_title">Turn the pile over and put it back</string>
+    <string name="job_reload_continue">Pile is back, print the backs</string>
+
+    <!-- Reload card -->
+    <plurals name="job_reload_take">
+        <item quantity="one">1. Take out the printed sheet.</item>
+        <item quantity="other">1. Take out all %1$d printed sheets.</item>
+    </plurals>
+    <string name="job_reload_flip_long">2. Turn the whole pile over like a book page. Keep the order.</string>
+    <string name="job_reload_flip_short">2. Turn the whole pile over like a notepad page, top to bottom. Keep the order.</string>
+    <string name="job_reload_first">3. Put it back in the paper tray so the printer takes the sheet with page %1$s first.</string>
+    <string name="job_reload_first_blank">Nothing prints on the back of that sheet: it goes through blank so the others line up.</string>
+    <string name="job_reload_blank">The sheet with page %1$s has nothing on its back. Put it back too: it goes through once more with nothing printed.</string>
+    <string name="job_reload_first_caption">Goes in first</string>
+    <string name="job_reload_first_desc">The sheet with page %1$s, which goes in first</string>
+    <string name="job_reload_generic">The fronts are printed. Take out the whole pile, turn it over without changing the order, put it back in the paper tray, then continue.</string>
+    <string name="job_back_of">Printing back %1$d of %2$d</string>
+    <string name="job_reload_notification">Fronts done. Turn the pile over, put it back, then open Platen to print the backs.</string>
+    <string name="job_reload_notification_first">Fronts done. Turn the pile over and put it back so the sheet with page %1$s goes in first, then open Platen to print the backs.</string>
     <string name="job_attention_title">The printer needs attention</string>
     <string name="job_cancel">Cancel printing</string>
     <string name="job_detached_title">The printer stopped answering</string>

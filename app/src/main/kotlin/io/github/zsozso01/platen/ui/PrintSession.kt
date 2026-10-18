@@ -2,12 +2,17 @@ package io.github.zsozso01.platen.ui
 
 import android.graphics.Bitmap
 import io.github.zsozso01.platen.AppContainer
+import io.github.zsozso01.platen.core.engine.ManualDuplexOptions
+import io.github.zsozso01.platen.core.engine.Pass
 import io.github.zsozso01.platen.core.engine.PrintPlan
 import io.github.zsozso01.platen.core.engine.PrintPlanner
 import io.github.zsozso01.platen.core.engine.PlanningException
 import io.github.zsozso01.platen.core.engine.RasterPixelFormat
+import io.github.zsozso01.platen.core.engine.inSendOrder
+import io.github.zsozso01.platen.core.engine.printsBothSides
 import io.github.zsozso01.platen.core.layout.LayoutPlan
 import io.github.zsozso01.platen.core.layout.LayoutPlanner
+import io.github.zsozso01.platen.core.layout.SheetFaces
 import io.github.zsozso01.platen.core.model.MediaSize
 import io.github.zsozso01.platen.core.model.PageSelection
 import io.github.zsozso01.platen.core.model.PrintSettings
@@ -62,9 +67,29 @@ data class PrintUiState(
     val customMarginMm: String = "10",
     val plan: PlanState = PlanState.None,
     val layout: LayoutPlan? = null,
-    val previewSide: Int = 0,
-    val preview: Bitmap? = null,
+    /** What the preview shows; null while there is nothing to lay out. */
+    val sheetPreview: SheetPreview? = null,
+    /** Index of the sheet shown in [sheetPreview]. */
+    val previewSheet: Int = 0,
+    val previewFront: Bitmap? = null,
+    /** Null when the back is blank, not two-sided, or still being drawn. */
+    val previewBack: Bitmap? = null,
 )
+
+/** What the preview shows: the sheets of one copy in print order, with the pages on each face. */
+data class SheetPreview(
+    val twoSided: Boolean,
+    val sheets: List<SheetFaces>,
+    /** Pages label of the front and back of each sheet; null = nothing printed on that face. */
+    val labels: List<Pair<String?, String?>>,
+    /** Manual two-sided only: what each pass sends, in the order the printer gets it. Empty otherwise. */
+    val passes: List<PassLabels>,
+    /** Sheet width / height. */
+    val aspect: Float,
+)
+
+/** The faces of one pass as page labels (null = blank), for one copy; [repeatsForCopies] when the pass repeats them per copy. */
+data class PassLabels(val role: Pass.Role, val faces: List<String?>, val repeatsForCopies: Boolean)
 
 /**
  * One document being prepared for printing: the chosen printer's capabilities, the user's settings, the
@@ -94,10 +119,10 @@ class PrintSession(
     init {
         _state.value.printer?.let(::loadCapabilities)
         scope.launch {
-            _state.map { Triple(it.settings, (it.caps as? CapsState.Ready)?.capabilities, it.previewSide) }
+            _state.map { Triple(it.settings, (it.caps as? CapsState.Ready)?.capabilities, it.previewSheet) }
                 .distinctUntilChanged()
                 .debounce(150)
-                .collectLatest { (settings, caps, side) -> replan(settings, caps, side) }
+                .collectLatest { (settings, caps, sheet) -> replan(settings, caps, sheet) }
         }
     }
 
@@ -118,7 +143,7 @@ class PrintSession(
 
     fun update(change: (PrintSettings) -> PrintSettings) {
         _state.update { s ->
-            runCatching { change(s.settings) }.getOrNull()?.let { s.copy(settings = it, previewSide = s.previewSide.coerceAtLeast(0)) } ?: s
+            runCatching { change(s.settings) }.getOrNull()?.let { s.copy(settings = it, previewSheet = s.previewSheet.coerceAtLeast(0)) } ?: s
         }
     }
 
@@ -137,8 +162,8 @@ class PrintSession(
         _state.update { it.copy(customMarginMm = text) }
     }
 
-    fun setPreviewSide(index: Int) {
-        _state.update { it.copy(previewSide = index) }
+    fun setPreviewSheet(index: Int) {
+        _state.update { it.copy(previewSheet = index) }
     }
 
     /** Starts printing. Returns false if a job is already running or nothing can be planned. */
@@ -152,7 +177,8 @@ class PrintSession(
 
     fun close() {
         scope.cancel()
-        _state.value.preview?.recycle()
+        // The preview bitmaps are deliberately not recycled: Compose may still draw them in the current frame,
+        // and on API 26+ their pixel memory is reclaimed by the garbage collector anyway.
         document.close()
     }
 
@@ -177,7 +203,7 @@ class PrintSession(
         }
     }
 
-    private suspend fun replan(settings: PrintSettings, caps: PrinterCapabilities?, side: Int) {
+    private suspend fun replan(settings: PrintSettings, caps: PrinterCapabilities?, sheetIndex: Int) {
         val source = document.asSource()
         var plan: PlanState = PlanState.None
         var layout: LayoutPlan? = null
@@ -196,16 +222,44 @@ class PrintSession(
                 LayoutPlanner.plan(List(document.pageCount) { document.pageGeometry(it) }, settings, MediaSize.A4)
             }.getOrNull()?.takeUnless { it.isEmpty }
         }
-        val shownSide = side.coerceIn(0, ((layout?.sides?.size ?: 1) - 1).coerceAtLeast(0))
-        val bitmap = layout?.takeUnless { it.isEmpty }?.let { renderPreview(it, shownSide) }
-        _state.update { current ->
-            if (current.preview != null && current.preview !== bitmap) current.preview.recycle()
-            current.copy(plan = plan, layout = layout, previewSide = shownSide, preview = bitmap)
+        val shownLayout = layout?.takeUnless { it.isEmpty }
+        if (shownLayout == null) {
+            // The old preview bitmaps are dropped, not recycled: see [close].
+            _state.update { it.copy(plan = plan, layout = layout, sheetPreview = null, previewSheet = 0, previewFront = null, previewBack = null) }
+            return
         }
-    }
 
-    private suspend fun renderPreview(layout: LayoutPlan, sideIndex: Int): Bitmap? =
-        withContext(Dispatchers.IO) { renderSideBitmap(document, layout, sideIndex, PREVIEW_DPI) }
+        val readyPlan = (plan as? PlanState.Ready)?.plan
+        val twoSided = readyPlan?.printsBothSides ?: (settings.sides.isDuplex || shownLayout.requiresDuplex)
+        val sheets = shownLayout.sheets(twoSided)
+        val shown = sheetIndex.coerceIn(0, sheets.lastIndex)
+        val passes = if (readyPlan != null && readyPlan.needsReload) {
+            val options = ManualDuplexOptions(reverseBackOrder = settings.manualBacksLastToFirst)
+            readyPlan.passes.map { pass ->
+                val faces = pass.inSendOrder(options)
+                // A manual two-sided pass holds one face per sheet and copy, so the first sheets.size are one copy.
+                PassLabels(pass.role, faces.take(sheets.size).map { shownLayout.pagesLabel(it.sideIndex) }, faces.size > sheets.size)
+            }
+        } else {
+            emptyList()
+        }
+        val preview = SheetPreview(
+            twoSided = twoSided,
+            sheets = sheets,
+            labels = sheets.map { shownLayout.pagesLabel(it.front) to shownLayout.pagesLabel(it.back) },
+            passes = passes,
+            aspect = (shownLayout.sheet.widthPoints / shownLayout.sheet.heightPoints).toFloat(),
+        )
+        val shownFaces = sheets[shown]
+        val (front, back) = withContext(Dispatchers.IO) {
+            val frontBitmap = renderSideBitmap(document, shownLayout, shownFaces.front, PREVIEW_DPI)
+            // A blank back stays null: the preview draws it as an empty outlined sheet.
+            val backBitmap = shownFaces.back?.takeIf { twoSided && shownLayout.pagesLabel(it) != null }?.let { renderSideBitmap(document, shownLayout, it, PREVIEW_DPI) }
+            frontBitmap to backBitmap
+        }
+        // The old bitmaps are dropped, not recycled: see [close].
+        _state.update { it.copy(plan = plan, layout = layout, sheetPreview = preview, previewSheet = shown, previewFront = front, previewBack = back) }
+    }
 
     private companion object {
         const val PREVIEW_DPI = 60
