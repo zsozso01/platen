@@ -65,7 +65,7 @@ class PrintJobService : Service() {
                 is JobEvent.Sending -> context.getString(R.string.job_sending)
                 is JobEvent.Printing -> context.getString(R.string.job_printing)
                 JobEvent.NeedsReload ->
-                    state?.reload?.let { context.getString(R.string.job_reload_notification_first, it.firstSheetPages) }
+                    state.reload?.let { context.getString(R.string.job_reload_notification_first, it.firstSheetPages) }
                         ?: context.getString(R.string.job_reload_notification)
                 else -> context.getString(R.string.job_starting)
             }
