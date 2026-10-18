@@ -143,6 +143,23 @@ class PdfRasterBackendTest {
     }
 
     @Test
+    fun `a reversed odd duplex job puts an imageless page behind the first sheet's front`() {
+        val settings = PrintSettings(
+            sides = Sides.TWO_SIDED_LONG_EDGE,
+            reverseOrder = true,
+            color = ColorMode.MONOCHROME,
+        )
+        val (plan, doc) = plan(3, settings)
+        val pdf = write(plan, doc)
+        assertEquals(4, pdf.declaredPages)
+        assertEquals(4, pdf.pages.size)
+        assertNull(pdf.pages[1].image, "the back of the first sheet is blank")
+        assertEquals("q Q", pdf.pages[1].content.trim())
+        val (three, one, two) = listOf(3, 1, 2).map(SolidBlockRasterizer::shade)
+        assertEquals(listOf(three, null, one, two), pdf.pages.map { it.image?.gray(200, 300) })
+    }
+
+    @Test
     fun `memory use is bounded by bands, not pages`() {
         // Whatever the band size, the same bytes describe the same pages.
         val (plan, doc) = plan(2, PrintSettings(color = ColorMode.COLOR), colour)

@@ -42,16 +42,26 @@ public object LayoutPlanner {
         val sheetRect = Rect(0.0, 0.0, sheet.widthPoints, sheet.heightPoints)
         val area = printableArea(sheetRect, settings, unprintable)
 
-        var selected = settings.pages.resolve(pages.size)
+        val selected = settings.pages.resolve(pages.size)
         if (selected.isEmpty()) notes += LayoutPlan.Note.NOTHING_SELECTED
         if (settings.booklet) return planBooklet(pages, selected, settings, sheet, sheetRect, area, notes)
 
-        if (settings.reverseOrder) selected = selected.reversed()
         val perSheet = settings.pagesPerSheet
-        val sides = selected.chunked(perSheet.count).map { chunk ->
+        var sides = selected.chunked(perSheet.count).map { chunk ->
             Side(placeCells(chunk, pages, settings, perSheet, sheetRect, area, forceLandscape = false, notes))
         }
+        if (settings.reverseOrder) sides = reverseSheets(sides, settings.sides.isDuplex)
         return LayoutPlan(sheet, area, sides, requiresDuplex = false, requiredSides = null, notes = notes.toList())
+    }
+
+    /**
+     * Last sheet first. Pages keep their order within a sheet, so a two-sided sheet still has its front and
+     * back together. An odd last side gets an explicit blank back so it stays on a sheet of its own.
+     */
+    private fun reverseSheets(sides: List<Side>, twoSided: Boolean): List<Side> {
+        if (!twoSided) return sides.reversed()
+        val padded = if (sides.size % 2 == 1) sides + Side(emptyList()) else sides
+        return padded.chunked(2).reversed().flatten()
     }
 
     private fun printableArea(sheetRect: Rect, settings: PrintSettings, unprintable: Margins): Rect {

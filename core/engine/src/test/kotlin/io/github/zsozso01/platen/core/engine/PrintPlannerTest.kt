@@ -333,4 +333,192 @@ class PrintPlannerTest {
         val plan = PrintPlanner.plan(SyntheticDocument.a4Pages(1, asPdf = false), PrintSettings(), laserCaps)
         assertEquals(RouteKind.RASTER, plan.route)
     }
+
+    // ---------------------------------------------------------------- reverse order with two-sided printing
+
+    private val longEdge = PrintSettings(sides = Sides.TWO_SIDED_LONG_EDGE)
+    private val longEdgeReversed = longEdge.copy(reverseOrder = true)
+    private val backsLastToFirst = ManualDuplexOptions(reverseBackOrder = true)
+
+    private fun planFor(pages: Int, settings: PrintSettings, caps: PrinterCapabilities = inkjetCaps) =
+        PrintPlanner.plan(SyntheticDocument.a4Pages(pages), settings, caps)
+
+    /** The pages printed on each face of a pass, in the order given; null for a face with nothing on it. */
+    private fun PrintPlan.labels(faces: List<Face>): List<String?> = faces.map { layout.pagesLabel(it.sideIndex) }
+
+    @Test
+    fun `reversing an odd manual duplex job sends the lone page first with a blank back`() {
+        val plan = planFor(9, longEdgeReversed)
+        val (fronts, backs) = plan.passes
+        assertEquals(listOf(0, 2, 4, 6, 8), fronts.faces.map { it.sideIndex })
+        assertEquals(listOf("9", "7", "5", "3", "1"), plan.labels(fronts.faces))
+        assertEquals(listOf(1, 3, 5, 7, 9), backs.faces.map { it.sideIndex })
+        assertEquals(listOf(null, "8", "6", "4", "2"), plan.labels(backs.faces))
+        assertTrue(backs.faces.none { it.isBlank }, "the blank back is a side of the layout, so it is not padding")
+        assertEquals(listOf("2", "4", "6", "8", null), plan.labels(backs.inSendOrder(backsLastToFirst)))
+        assertTrue(plan.printsBothSides)
+        assertEquals(5, plan.sheets().size)
+    }
+
+    @Test
+    fun `reversing an even manual duplex job needs no blank`() {
+        val plan = planFor(8, longEdgeReversed)
+        val (fronts, backs) = plan.passes
+        assertEquals(listOf("7", "5", "3", "1"), plan.labels(fronts.faces))
+        assertEquals(listOf("8", "6", "4", "2"), plan.labels(backs.faces))
+    }
+
+    @Test
+    fun `only the back pass is sent last to first`() {
+        val plan = planFor(4, longEdge)
+        val (fronts, backs) = plan.passes
+        assertEquals(fronts.faces, fronts.inSendOrder(backsLastToFirst))
+        assertEquals(backs.faces, backs.inSendOrder(ManualDuplexOptions()))
+        assertEquals(backs.faces.reversed(), backs.inSendOrder(backsLastToFirst))
+        val single = Pass(listOf(Face(0), Face(1)))
+        assertEquals(single.faces, single.inSendOrder(backsLastToFirst), "a pass that is not a back pass is left alone")
+    }
+
+    @Test
+    fun `a printer that duplexes itself gets the blank back inside its single pass`() {
+        val plan = planFor(3, longEdgeReversed, laserCaps)
+        assertEquals(RouteKind.RASTER, plan.route, "reverse order is done by the app")
+        assertTrue(plan.raster!!.printerDuplex)
+        val pass = plan.passes.single()
+        assertEquals(listOf(0, 1, 2, 3), pass.faces.map { it.sideIndex })
+        assertEquals(listOf("3", null, "1", "2"), plan.labels(pass.faces))
+        assertTrue(plan.printsBothSides)
+        assertNull(plan.reloadGuide())
+    }
+
+    @Test
+    fun `app copies with reverse and manual duplex repeat the same sheets`() {
+        val plan = planFor(3, longEdgeReversed.copy(copies = 2, collate = true))
+        val (fronts, backs) = plan.passes
+        assertEquals(listOf(0, 2, 0, 2), fronts.faces.map { it.sideIndex })
+        assertEquals(listOf(1, 3, 1, 3), backs.faces.map { it.sideIndex })
+        assertEquals(listOf("3", "1", "3", "1"), plan.labels(fronts.faces))
+        assertEquals(listOf(null, "2", null, "2"), plan.labels(backs.faces))
+    }
+
+    @Test
+    fun `a blank side reaches the raster writers as no side at all`() {
+        val plan = planFor(3, longEdgeReversed)
+        val backs = plan.passes[1]
+        assertEquals(listOf(false, true), RasterFaces.build(plan, backs).map { it.side != null })
+        assertEquals(listOf(true, false), RasterFaces.build(plan, backs, backsLastToFirst).map { it.side != null })
+        val duplexPlan = planFor(3, longEdgeReversed, laserCaps)
+        val duplexFaces = RasterFaces.build(duplexPlan, duplexPlan.passes.single())
+        assertEquals(listOf(true, false, true, true), duplexFaces.map { it.side != null })
+    }
+
+    @Test
+    fun `printsBothSides covers the printer's duplexer and manual duplex but not one-sided jobs`() {
+        assertFalse(planFor(3, PrintSettings()).printsBothSides)
+        assertTrue(planFor(3, longEdge).printsBothSides, "manual duplex")
+        val passThrough = planFor(3, longEdge, laserCaps)
+        assertEquals(RouteKind.PASS_THROUGH, passThrough.route)
+        assertTrue(passThrough.printsBothSides, "the printer's own duplexer")
+        assertEquals(2, passThrough.sheets().size)
+        assertEquals(3, planFor(3, PrintSettings()).sheets().size)
+    }
+
+    // ---------------------------------------------------------------- the reload guide
+
+    private fun reloadGuide(pages: Int, settings: PrintSettings, options: ManualDuplexOptions = ManualDuplexOptions()) =
+        assertNotNull(planFor(pages, settings).reloadGuide(options))
+
+    @Test
+    fun `an odd page count leaves the last sheet with a blank back`() {
+        val guide = reloadGuide(9, longEdge)
+        assertEquals(Sides.TWO_SIDED_LONG_EDGE, guide.binding)
+        assertEquals(0, guide.firstFront)
+        assertEquals(5, guide.sheetCount)
+        assertEquals(
+            listOf(
+                ReloadSheet(1, 0, 8), ReloadSheet(3, 2, 6), ReloadSheet(5, 4, 4),
+                ReloadSheet(7, 6, 2), ReloadSheet(null, 8, 0),
+            ),
+            guide.sheets,
+        )
+        assertEquals(ReloadSheet(1, 0, 8), guide.firstSheet)
+        assertEquals(ReloadSheet(1, 0, 8), guide.firstPrinted)
+        assertEquals(ReloadSheet(1, 0, 8), guide.mixUpExample)
+        assertEquals(listOf(8), guide.blankBackFronts)
+    }
+
+    @Test
+    fun `starting the backs from the other end of the pile reverses the sheets and moves the blank first`() {
+        val guide = reloadGuide(9, longEdge, backsLastToFirst)
+        assertEquals(0, guide.firstFront)
+        assertEquals(
+            listOf(
+                ReloadSheet(null, 8, 0), ReloadSheet(7, 6, 2), ReloadSheet(5, 4, 4),
+                ReloadSheet(3, 2, 6), ReloadSheet(1, 0, 8),
+            ),
+            guide.sheets,
+        )
+        assertEquals(ReloadSheet(null, 8, 0), guide.firstSheet)
+        assertEquals(ReloadSheet(7, 6, 2), guide.firstPrinted)
+        assertEquals(listOf(8), guide.blankBackFronts)
+    }
+
+    @Test
+    fun `reversing an odd job puts the blank back on the first sheet`() {
+        val guide = reloadGuide(9, longEdgeReversed)
+        assertEquals(0, guide.firstFront)
+        assertEquals(
+            listOf(
+                ReloadSheet(null, 0, 8), ReloadSheet(3, 2, 6), ReloadSheet(5, 4, 4),
+                ReloadSheet(7, 6, 2), ReloadSheet(9, 8, 0),
+            ),
+            guide.sheets,
+        )
+        assertEquals(ReloadSheet(3, 2, 6), guide.firstPrinted)
+        assertEquals(ReloadSheet(3, 2, 6), guide.mixUpExample)
+        assertEquals(listOf(0), guide.blankBackFronts)
+    }
+
+    @Test
+    fun `a sheet that lands behind the same front from either end is no mix-up example`() {
+        val guide = reloadGuide(5, longEdgeReversed)
+        assertEquals(listOf(ReloadSheet(null, 0, 4), ReloadSheet(3, 2, 2), ReloadSheet(5, 4, 0)), guide.sheets)
+        assertEquals(ReloadSheet(3, 2, 2), guide.firstPrinted, "the middle sheet is the first with a printed back")
+        assertEquals(ReloadSheet(5, 4, 0), guide.mixUpExample, "only an outer sheet shows what a mix-up looks like")
+    }
+
+    @Test
+    fun `every copy has its own blank back`() {
+        val guide = reloadGuide(3, longEdge.copy(copies = 2, collate = true))
+        assertEquals(
+            listOf(ReloadSheet(1, 0, 2), ReloadSheet(null, 2, 0), ReloadSheet(1, 0, 2), ReloadSheet(null, 2, 0)),
+            guide.sheets,
+        )
+        assertEquals(listOf(2), guide.blankBackFronts)
+    }
+
+    @Test
+    fun `a single page prints nothing on the back`() {
+        val guide = reloadGuide(1, longEdge)
+        assertEquals(listOf(ReloadSheet(null, 0, 0)), guide.sheets)
+        assertNull(guide.firstPrinted)
+        assertNull(guide.mixUpExample)
+        assertEquals(listOf(0), guide.blankBackFronts)
+    }
+
+    @Test
+    fun `short edge and booklets carry their binding into the guide`() {
+        val shortEdge = PrintSettings(sides = Sides.TWO_SIDED_SHORT_EDGE)
+        assertEquals(Sides.TWO_SIDED_SHORT_EDGE, reloadGuide(4, shortEdge).binding)
+        val booklet = reloadGuide(8, PrintSettings(booklet = true))
+        assertEquals(Sides.TWO_SIDED_SHORT_EDGE, booklet.binding)
+        assertEquals(listOf(ReloadSheet(1, 0, 2), ReloadSheet(3, 2, 0)), booklet.sheets)
+    }
+
+    @Test
+    fun `there is no guide unless the user turns the paper over by hand`() {
+        assertNull(planFor(3, PrintSettings()).reloadGuide(), "one-sided")
+        assertNull(planFor(3, longEdge, laserCaps).reloadGuide(), "pass-through duplex")
+        assertNull(planFor(3, longEdgeReversed, laserCaps).reloadGuide(), "printer duplex")
+    }
 }
