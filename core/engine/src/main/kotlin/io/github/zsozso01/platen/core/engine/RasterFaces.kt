@@ -33,16 +33,17 @@ public object RasterFaces {
      * Back sides of printer-duplex jobs are produced in the printer's own coordinate system, which per
      * PWG 5102.4 table 9 depends on the binding and on the printer's `pwg-raster-document-sheet-back`.
      * Manual duplex back faces are turned for short-edge binding. Faces of the back pass come out
-     * last-to-first when [ManualDuplexOptions.reverseBackOrder] is set.
+     * last-to-first when [ManualDuplexOptions.reverseBackOrder] is set (see [inSendOrder]). A blank side
+     * (padding or a missing back) becomes a face with no side, which the writers print as plain white.
      */
     public fun build(plan: PrintPlan, pass: Pass, options: ManualDuplexOptions = ManualDuplexOptions()): List<RasterFace> {
         val raster = checkNotNull(plan.raster) { "Not a raster plan" }
         val sheetW = plan.layout.sheet.widthPoints
         val sheetH = plan.layout.sheet.heightPoints
-        val ordered = if (pass.role == Pass.Role.BACKS && options.reverseBackOrder) pass.faces.reversed() else pass.faces
+        val ordered = pass.inSendOrder(options)
 
         return ordered.mapIndexed { index, face ->
-            val side = face.sideIndex?.let { plan.layout.sides[it] }
+            val side = face.sideIndex?.let { plan.layout.sides[it] }?.takeUnless { it.isBlank }
             when {
                 raster.printerDuplex -> {
                     val isBack = index % 2 == 1

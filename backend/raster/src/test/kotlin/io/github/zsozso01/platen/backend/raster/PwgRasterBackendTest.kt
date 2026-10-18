@@ -6,6 +6,7 @@ import io.github.zsozso01.platen.core.engine.Pass
 import io.github.zsozso01.platen.core.engine.PrintPlan
 import io.github.zsozso01.platen.core.engine.PrintPlanner
 import io.github.zsozso01.platen.core.engine.RasterFaces
+import io.github.zsozso01.platen.core.model.ColorMode
 import io.github.zsozso01.platen.core.model.DocumentFormat
 import io.github.zsozso01.platen.core.model.JobEvent
 import io.github.zsozso01.platen.core.model.PageSelection
@@ -168,6 +169,25 @@ class PwgRasterBackendTest {
         assertEquals(false, fronts[0].header.duplex, "each manual pass is one-sided")
         val reversed = write(plan, doc, backsPass, ManualDuplexOptions(reverseBackOrder = true))
         assertEquals(listOf(4, 2).map(SolidBlockRasterizer::shade), reversed.map { it.gray(200, 300) })
+    }
+
+    @Test
+    fun `reversing an odd manual duplex job writes the lone page first and a white back behind it`() {
+        val settings = PrintSettings(
+            sides = Sides.TWO_SIDED_LONG_EDGE,
+            reverseOrder = true,
+            color = ColorMode.MONOCHROME,
+        )
+        val (plan, doc) = plan(3, settings)
+        val (frontsPass, backsPass) = plan.passes
+        val white = 255
+        val fronts = write(plan, doc, frontsPass)
+        assertEquals(listOf(3, 1).map(SolidBlockRasterizer::shade), fronts.map { it.gray(200, 300) })
+        val backs = write(plan, doc, backsPass)
+        assertEquals(listOf(white, SolidBlockRasterizer.shade(2)), backs.map { it.gray(200, 300) })
+        assertTrue(backs[0].rows.all { row -> row.all { it == 0xFF.toByte() } }, "the blank back is white all over")
+        val reversed = write(plan, doc, backsPass, ManualDuplexOptions(reverseBackOrder = true))
+        assertEquals(listOf(SolidBlockRasterizer.shade(2), white), reversed.map { it.gray(200, 300) })
     }
 
     @Test

@@ -124,9 +124,9 @@ class EndToEndOnDeviceTest {
             }
             return listOf("red" to r, "blue" to b, "green" to g, "magenta" to m).maxBy { it.second }.first
         }
-        // Fronts are pages 1 and 3 in order; backs are pages 4 then 2 (reversed for the reload).
+        // Fronts are pages 1 and 3 in order; backs are pages 2 then 4 (pile order, the default).
         assertEquals(listOf("red", "green"), fronts.map(::dominant))
-        // Backs are printed last to first, and (long edge, default options) upright: page 4 magenta, page 2 blue.
-        assertEquals(listOf("magenta", "blue"), backs.map(::dominant))
+        // Backs are printed in pile order, and (long edge, default options) upright: page 2 blue, page 4 magenta.
+        assertEquals(listOf("blue", "magenta"), backs.map(::dominant))
     }
 }

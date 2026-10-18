@@ -14,6 +14,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class LayoutPlannerTest {
@@ -29,6 +30,9 @@ class LayoutPlannerTest {
         LayoutPlanner.plan(pages, settings, sheet, unprintable)
 
     private fun LayoutPlan.pageOrder() = sides.map { s -> s.placements.map { it.sourcePage } }
+
+    /** The source pages on every side, in print order; a blank side is an empty list. */
+    private fun LayoutPlan.pagesPerSide() = sides.map { it.sourcePages }
 
     // --- single page: scaling modes -----------------------------------------------------------
 
@@ -166,6 +170,119 @@ class LayoutPlannerTest {
         val (first, second) = result.sides.map { it.placements.single() }
         assertNear(1.0, first.scale)
         assertTrue(second.scale < 1.0)
+    }
+
+    // --- reverse order reverses sheets, so two-sided pairs stay together -----------------------------
+
+    private val twoSidedReversed = noMargins.copy(sides = Sides.TWO_SIDED_LONG_EDGE, reverseOrder = true)
+
+    @Test
+    fun `reversing an odd two-sided job puts the odd page alone on the first sheet`() {
+        val result = plan(List(9) { a4Page }, twoSidedReversed)
+        assertEquals(
+            listOf(
+                listOf(9), emptyList(), listOf(7), listOf(8), listOf(5),
+                listOf(6), listOf(3), listOf(4), listOf(1), listOf(2),
+            ),
+            result.pagesPerSide(),
+        )
+        assertTrue(result.sides[1].isBlank, "the back of the first sheet is an explicit blank")
+        assertEquals(5, result.sheetCount(duplex = true))
+    }
+
+    @Test
+    fun `reversing an even two-sided job keeps each sheet's pages in reading order`() {
+        val result = plan(List(8) { a4Page }, twoSidedReversed)
+        assertEquals(
+            listOf(listOf(7), listOf(8), listOf(5), listOf(6), listOf(3), listOf(4), listOf(1), listOf(2)),
+            result.pagesPerSide(),
+        )
+    }
+
+    @Test
+    fun `short edge reverses the same sheets as long edge`() {
+        val long = plan(List(9) { a4Page }, twoSidedReversed)
+        val short = plan(List(9) { a4Page }, twoSidedReversed.copy(sides = Sides.TWO_SIDED_SHORT_EDGE))
+        assertEquals(long.pagesPerSide(), short.pagesPerSide())
+    }
+
+    @Test
+    fun `reversing a two-sided n-up job reverses whole sheets`() {
+        assertEquals(
+            listOf(listOf(9), emptyList(), listOf(5, 6), listOf(7, 8), listOf(1, 2), listOf(3, 4)),
+            plan(List(9) { a4Page }, twoSidedReversed.copy(pagesPerSheet = PagesPerSheet(2))).pagesPerSide(),
+        )
+        assertEquals(
+            listOf(listOf(9, 10), emptyList(), listOf(1, 2, 3, 4), listOf(5, 6, 7, 8)),
+            plan(List(10) { a4Page }, twoSidedReversed.copy(pagesPerSheet = PagesPerSheet(4))).pagesPerSide(),
+        )
+    }
+
+    @Test
+    fun `reversing a one-sided n-up job reverses whole sheets without padding`() {
+        val result = plan(List(10) { a4Page }, noMargins.copy(reverseOrder = true, pagesPerSheet = PagesPerSheet(4)))
+        assertEquals(listOf(listOf(9, 10), listOf(5, 6, 7, 8), listOf(1, 2, 3, 4)), result.pagesPerSide())
+    }
+
+    @Test
+    fun `reversing odd pages only pairs the remaining pages by sheet`() {
+        val oddOnly = PageSelection(parity = PageSelection.Parity.ODD_ONLY)
+        val result = plan(List(5) { a4Page }, twoSidedReversed.copy(pages = oddOnly))
+        assertEquals(listOf(listOf(5), emptyList(), listOf(1), listOf(3)), result.pagesPerSide())
+    }
+
+    @Test
+    fun `a booklet ignores reverse order`() {
+        val booklet = noMargins.copy(booklet = true)
+        assertEquals(
+            plan(List(8) { a4Page }, booklet),
+            plan(List(8) { a4Page }, booklet.copy(reverseOrder = true)),
+        )
+    }
+
+    @Test
+    fun `reversing an empty selection stays empty`() {
+        val result = plan(List(3) { a4Page }, twoSidedReversed.copy(pages = PageSelection(listOf(9..12))))
+        assertTrue(result.isEmpty)
+        assertTrue(LayoutPlan.Note.NOTHING_SELECTED in result.notes)
+    }
+
+    // --- labels and sheets ---------------------------------------------------------------------
+
+    @Test
+    fun `a side is labelled with its pages, runs joined by an en dash`() {
+        assertEquals("1", plan(List(2) { a4Page }, noMargins).sides[0].pagesLabel())
+        assertEquals("1–2", plan(List(2) { a4Page }, nUp(2)).sides.single().pagesLabel())
+        val fourUp = plan(List(8) { a4Page }, nUp(4).copy(pages = PageSelection(listOf(1..3, 7..7))))
+        assertEquals("1–3, 7", fourUp.sides.single().pagesLabel())
+    }
+
+    @Test
+    fun `a booklet spread is labelled in the order the pages sit`() {
+        val booklet = plan(List(8) { a4Page }, noMargins.copy(booklet = true))
+        assertEquals("8, 1", booklet.sides[0].pagesLabel())
+        assertEquals("2, 7", booklet.sides[1].pagesLabel())
+        assertEquals("4–5", booklet.sides[3].pagesLabel())
+    }
+
+    @Test
+    fun `a blank side has no label`() {
+        val result = plan(List(9) { a4Page }, twoSidedReversed)
+        assertEquals("", result.sides[1].pagesLabel())
+        assertEquals("9", result.pagesLabel(0))
+        assertNull(result.pagesLabel(1), "a blank side")
+        assertNull(result.pagesLabel(null), "no side at all")
+    }
+
+    @Test
+    fun `sheets pair consecutive sides when two-sided and stand alone otherwise`() {
+        val result = plan(List(3) { a4Page }, noMargins)
+        assertEquals(listOf(SheetFaces(0, 1), SheetFaces(2, null)), result.sheets(twoSided = true))
+        assertEquals(
+            listOf(SheetFaces(0, null), SheetFaces(1, null), SheetFaces(2, null)),
+            result.sheets(twoSided = false),
+        )
+        assertTrue(plan(emptyList(), noMargins).sheets(twoSided = true).isEmpty())
     }
 
     // --- pages per sheet ---------------------------------------------------------------------
