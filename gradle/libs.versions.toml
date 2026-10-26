@@ -1,8 +1,8 @@
 [versions]
 agp = "9.4.1"
-kotlin = "2.3.21"
+kotlin = "2.4.21"
 coroutines = "1.11.0"
-serialization = "1.11.0"
+serialization = "1.12.0"
 composeBom = "2026.06.01"   # newer BOMs need compileSdk 37; installed platforms are 35/36
 activityCompose = "1.13.0"
 lifecycle = "2.10.0"        # 2.11+ needs compileSdk 37
